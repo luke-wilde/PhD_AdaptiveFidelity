@@ -98,6 +98,7 @@ head(f)
 showConnections(); sfStop(); showConnections()
 
 f$sd <- apply(f[,c(9:31)], 1, sd, na.rm=TRUE)
+f$mean <- apply(f[,c(9:31)], 1, mean, na.rm=TRUE)
 
 ggplot(data = f, aes(sd)) + geom_density()
 summary(f$sd)
@@ -199,5 +200,12 @@ plot1 <- ggplot(fidA1) + geom_density(aes(x = sd, fill = FidIndex, y = after_sta
 #save.image("./REnvs/ImageOfClimateSampling_20230428.RDS")
 
 #----------------------#
-# ####
+# biomass binned ####
 
+readRDS("REnvs/ImageOfClimateSampling_20230428.rds")
+
+head(f)
+
+fsimpl <- f %>% group_by(km) %>%  sample_n(1)
+
+ggplot(fsimpl) + geom_line(aes(x = km, y = mean), color = "") + geom_errorbar(aes(x = km, ymin = mean - sd, ymax = mean + sd))

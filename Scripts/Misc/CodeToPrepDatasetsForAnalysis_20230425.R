@@ -31,7 +31,7 @@ library(mgcv)
 #--------------------------#
 # prep datasets ####
 
-setwd("C:/Users/lwilde2/Documents/Chapter2_StopoverFidelity/")
+setwd("C:/Users/lwilde2/Documents/PhD_AdaptiveFidelity/")
 load("Data_out/Data/Stopover/RDH_StopoverBundle_14t22_20230425.RData")
 load("Data_out/Data/Stopover/FidelityMetrics_20230428.RData")
 load("Data_out/Data/Stopover/RDH_AlternateStops_Bischof_20230428.RData")
@@ -40,19 +40,19 @@ load("Data_out/Data/Greenscape/RDH_14t22_greenscapes_20230425.RData")
 # 
 #combine these data
 onstop_yr_fin$flag <- 1
-
-AlternateStops_Bischof <- AlternateStops_Bischof %>% st_as_sf(coords = c("x","y"), crs = st_crs(onstop_yr_fin)$input)
-
-AlternateStops_Bischof <- AlternateStops_Bischof %>% group_by(stop.n.c) %>% mutate(km = round(mean(km_mark, 0))) %>% ungroup() %>% dplyr::select(names(onstop_yr_fin %>% dplyr::select(-IncompMig)))
-
-stop_data <- rbind(onstop_yr_fin %>% dplyr::select(-IncompMig), AlternateStops_Bischof)
-stop_data <- stop_data %>% arrange(id_yr, POSIXct, flag)
-rm(AlternateStops_Bischof)
-proj <- st_crs(onstop_yr_fin)$input
-
-stop_data <- stop_data %>% st_as_sf(coords = c("xend","yend"), crs = proj)
-
-save(stop_data, file = "Data_out/Data/Stopover/RDH_UsedAvailStops_14t22_20230428.RData")
+# 
+# AlternateStops_Bischof <- AlternateStops_Bischof %>% st_as_sf(coords = c("x","y"), crs = st_crs(onstop_yr_fin)$input)
+# 
+# AlternateStops_Bischof <- AlternateStops_Bischof %>% group_by(stop.n.c) %>% mutate(km = round(mean(km_mark, 0))) %>% ungroup() %>% dplyr::select(names(onstop_yr_fin %>% dplyr::select(-IncompMig)))
+# 
+# stop_data <- rbind(onstop_yr_fin %>% dplyr::select(-IncompMig), AlternateStops_Bischof)
+# stop_data <- stop_data %>% arrange(id_yr, POSIXct, flag)
+# rm(AlternateStops_Bischof)
+# proj <- st_crs(onstop_yr_fin)$input
+# 
+# stop_data <- stop_data %>% st_as_sf(coords = c("xend","yend"), crs = proj)
+# 
+# save(stop_data, file = "Data_out/Data/Stopover/RDH_UsedAvailStops_14t22_20230428.RData")
 # 
 # #load data
 # load("Data/Stopover/RDH_UsedAvailStops_14t22_20230426.RData")
@@ -76,6 +76,43 @@ save(stop_data, file = "Data_out/Data/Stopover/RDH_UsedAvailStops_14t22_20230428
 # mean1 <- IYD_mean_fidelity_list[[1]]
 # head(mean1)
 
+setwd("C:/Users/lwilde2/Documents/PhD_AdaptiveFidelity/")
+load("Data_out/Data/Stopover/RDH_UsedAvailStops_14t22_20230428.RData")
+
+# readRDS("./REnvs/Analysis_04282023.RDS")
+
+# extract fidelity
+meanfid1 <- IYD_mean_fidelity_list[[1]]
+meanfid2 <- IYD_mean_fidelity_list[[2]]
+meanfid3 <- IYD_mean_fidelity_list[[3]]
+
+fid1 <- IYD_stop_fidelity_list[[1]]
+fid2 <- IYD_stop_fidelity_list[[2]]
+fid3 <- IYD_stop_fidelity_list[[3]]
+
+himeanfid1 <- IYD_HighUse_mean_fidelity_list[[1]]
+himeanfid2 <- IYD_HighUse_mean_fidelity_list[[2]]
+himeanfid3 <- IYD_HighUse_mean_fidelity_list[[3]]
+
+hifid1 <- IYD_HighUse_stop_fidelity_list[[1]]
+hifid2 <- IYD_HighUse_stop_fidelity_list[[2]]
+hifid3 <- IYD_HighUse_stop_fidelity_list[[3]]
+
+# Hypotheses
+
+#Greenscape quality and fidelity affect surfing score
+## absDFP ~ Duration*IYD + Order*IYD at 1, 2, 3 years
+
+#Stops with greater fidelity are because of longterm stability
+## IYD_km ~ sdiNDVI (random = id_yr, km)
+
+#information gathering along route
+## IYD ~ km, gam for nonlinear
+
+# how have conditions changed along route
+## hist of mean iNDVI
+
+
 #----------------------------#
 # Information hypothesis ####
 # route level
@@ -83,13 +120,16 @@ save(stop_data, file = "Data_out/Data/Stopover/RDH_UsedAvailStops_14t22_20230428
 head(RDH_14t22_greenscapes)
 head(IYD_mean_fidelity_list[[1]])
 
+
+
+
 RDH_14t22_greenscapes = RDH_14t22_greenscapes %>% rename(id_yr = AY_ID, AID = AnimalID)
 
-test <- IYD_mean_fidelity_list[[1]] %>% left_join(RDH_14t22_greenscapes %>% dplyr::select(-c(Year, AID)), by = "id_yr")
+test <- meanfid1 %>% left_join(RDH_14t22_greenscapes %>% dplyr::select(-c(Year, AID)), by = "id_yr")
 
 
 #does the greenscape affect fidelity? all stops
-mod.GWFidelity.all <- glmmTMB(mean_fid_1 ~ svSlope + greenUpDur + (1|AID) + (1|curr_Y) + (1|id_yr), data = test, family = Gamma(link = "log"))
+mod.GWFidelity.all <- glmmTMB(DFP_120 ~ svSlope*mean_fid_1 + greenUpDur*mean_fid_1 + (1|AID) + (1|curr_Y) + (1|id_yr), data = test, family = poisson(link = "log"), na.action = "na.fail")
 plot(DHARMa::simulateResiduals(mod.GWFidelity.all))
 summary(mod.GWFidelity.all)
 
@@ -182,7 +222,7 @@ newSH$low <- exp(newSH$fit - 1.96*newSH$se)
 ggplot(newSH) + geom_line(aes(x = km, y = real), color = "#008B8B", size = 1.2) + geom_line(aes(x = km, y = upp), linetype = "dashed", color = "#008B8B", size = 1.2) + geom_line(aes(x = km, y = low), linetype = "dashed", color = "#008B8B", size = 1.2) + theme_classic()
 
 
-save.image("./REnvs/Analysis_04282023.RDS")
+#save.image("./REnvs/Analysis_04282023.RDS")
 
 
 
