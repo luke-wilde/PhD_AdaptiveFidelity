@@ -106,7 +106,7 @@ SO_all <- st_transform(SO_all, crs = st_crs(data)$input)
 SO_all_sep <- SO_all %>% mutate(AID = str_sub(id_yr, 0,3)) %>% filter(layer == 1) %>% st_cast(., "POLYGON")
 
 #combine stops that are within 5 km of each other, takes two steps to get rid of overlap and dual counts
-
+# ATTN:: This code combines stops that are within 5000 n if 
 SO_all_sep_comb <- SO_all_sep[0,0]
 
 for(i in unique(SO_all_sep$id_yr)){
@@ -213,8 +213,8 @@ onstop_yr_fin$TimeStopped <- as.numeric(onstop_yr_fin$TimeStopped)
 onhigh_yr_fin <- onstop_yr_fin %>% filter(TimeStopped >= 72)
 onstop_yr_fin <- onstop_yr_fin %>% filter(TimeStopped >= 24)
 
-setwd("C:/Users/lwilde2/Documents/Chapter2_StopoverFidelity/")
-save(onstop_yr_fin, data1, onhigh_yr_fin, file = "Data_out/Data/Stopover/RDH_StopoverBundle_14t22_20230425.RData")
+setwd("C:/Users/lwilde2/Documents/PhD_AdaptiveFidelity/")
+save(onstop_yr_fin, data1, onhigh_yr_fin, file = "Data_out/Data/Stopover/RDH_StopoverBundle_14t22_20230425.RData") #crap accidentally overwrote on 20230503
 
 #---------------------------------#
 #---------------------------------#
@@ -245,7 +245,7 @@ save(onstop_yr_fin, data1, onhigh_yr_fin, file = "Data_out/Data/Stopover/RDH_Sto
 
 #for loop version
 
-ids <- unique(onstop_yr_fin$id_yr)
+ids <- unique(onhigh_yr_fin$id_yr)
 
 df <- data.frame()
 
@@ -264,11 +264,11 @@ for(i in 1:length(ids)){#length(ids)
   previous.id.3 <- paste0(sapply(strsplit(ids[i], "_"), "[", 1), "_", as.numeric(sapply(strsplit(ids[i], "_"), "[", 2)) -3, "")
   
   #subset dataset based on current and previous 3 id_yrs
-  current.id <- onstop_yr_fin %>% filter(id_yr == ids[i]) 
+  current.id <- onhigh_yr_fin %>% filter(id_yr == ids[i]) 
   
   if(previous.id.1 %in% ids){
     
-    temp.1 <- onstop_yr_fin %>% filter(id_yr==previous.id.1)
+    temp.1 <- onhigh_yr_fin %>% filter(id_yr==previous.id.1)
     
     
     x.1 <- current.id %>% group_by(stop.n.c) %>% summarise(min.IYD.1 = as.numeric(min(sf::st_distance(geometry, temp.1, by_element = F)))) %>% ungroup() %>% dplyr::left_join(current.id %>% st_drop_geometry() %>% group_by(stop.n.c) %>% summarise(km_mark = mean(km_mark), TimeStopped = mean(TimeStopped)) %>% dplyr::select(TimeStopped, km_mark, stop.n.c) %>% as.data.frame(), by = "stop.n.c")
@@ -286,7 +286,7 @@ for(i in 1:length(ids)){#length(ids)
   #second year
   if(previous.id.2 %in% ids){
     
-    temp.2 <- onstop_yr_fin %>% filter(id_yr==previous.id.2)
+    temp.2 <- onhigh_yr_fin %>% filter(id_yr==previous.id.2)
     
     
     x.2 <- current.id %>% group_by(stop.n.c) %>% summarise(min.IYD.2 = as.numeric(min(sf::st_distance(geometry, temp.2, by_element = F)))) %>% ungroup() %>% dplyr::left_join(current.id %>% st_drop_geometry() %>% group_by(stop.n.c) %>% summarise(km_mark = mean(km_mark), TimeStopped = mean(TimeStopped)) %>% dplyr::select(TimeStopped, km_mark, stop.n.c) %>% as.data.frame(), by = "stop.n.c")
@@ -304,7 +304,7 @@ for(i in 1:length(ids)){#length(ids)
   #third year
   if(previous.id.3 %in% ids){
     
-    temp.3 <- onstop_yr_fin %>% filter(id_yr==previous.id.3)
+    temp.3 <- onhigh_yr_fin %>% filter(id_yr==previous.id.3)
     
     
     x.3 <- current.id %>% group_by(stop.n.c) %>% summarise(min.IYD.3 = as.numeric(min(sf::st_distance(geometry, temp.3, by_element = F)))) %>% ungroup() %>% dplyr::left_join(current.id %>% st_drop_geometry() %>% group_by(stop.n.c) %>% summarise(km_mark = mean(km_mark), TimeStopped = mean(TimeStopped)) %>% dplyr::select(TimeStopped, km_mark, stop.n.c) %>% as.data.frame(), by = "stop.n.c")
@@ -326,17 +326,19 @@ for(i in 1:length(ids)){#length(ids)
   df <- rbind(df, df.full)
 }
 
-IYD_stop_fidelity <- df
+IYD_HighUse_stop_fidelity <- df
 
-head(IYD_stop_fidelity)
+head(IYD_HighUse_stop_fidelity)
 
-length(unique(IYD_stop_fidelity$AID))
 
-stfid1 <-IYD_stop_fidelity %>% drop_na(prev_Y_1) %>% dplyr::select("iyd_1","SpatOver_1","stop.n_1","km_mark_1","TimeStopped_1","curr_Y","prev_Y_1","AID") %>% mutate(id_yr = paste(AID,"_",curr_Y,sep=""))
-stfid2 <- IYD_stop_fidelity %>% drop_na(prev_Y_2) %>% dplyr::select("iyd_2","SpatOver_2","stop.n_2","km_mark_2","TimeStopped_2","curr_Y","prev_Y_2","AID") %>% mutate(id_yr = paste(AID,"_",curr_Y,sep=""))
-stfid3 <- IYD_stop_fidelity %>% drop_na(prev_Y_3) %>% dplyr::select("iyd_3","SpatOver_3","stop.n_3","km_mark_3","TimeStopped_3","curr_Y","prev_Y_3","AID") %>% mutate(id_yr = paste(AID,"_",curr_Y,sep=""))
 
-IYD_stop_fidelity_list <- list(stfid1, stfid2, stfid3)
+length(unique(IYD_HighUse_stop_fidelity$AID))
+
+stfid1 <-IYD_HighUse_stop_fidelity %>% drop_na(prev_Y_1) %>% dplyr::select("iyd_1","SpatOver_1","stop.n_1","km_mark_1","TimeStopped_1","curr_Y","prev_Y_1","AID") %>% mutate(id_yr = paste(AID,"_",curr_Y,sep=""))
+stfid2 <- IYD_HighUse_stop_fidelity %>% drop_na(prev_Y_2) %>% dplyr::select("iyd_2","SpatOver_2","stop.n_2","km_mark_2","TimeStopped_2","curr_Y","prev_Y_2","AID") %>% mutate(id_yr = paste(AID,"_",curr_Y,sep=""))
+stfid3 <- IYD_HighUse_stop_fidelity %>% drop_na(prev_Y_3) %>% dplyr::select("iyd_3","SpatOver_3","stop.n_3","km_mark_3","TimeStopped_3","curr_Y","prev_Y_3","AID") %>% mutate(id_yr = paste(AID,"_",curr_Y,sep=""))
+
+IYD_HighUse_stop_fidelity_list <- list(stfid1, stfid2, stfid3)
 
 
 #--------------------------------------------#
@@ -360,11 +362,11 @@ for(i in 1:length(ids)){#length(ids)
   previous.id.3 <- paste0(sapply(strsplit(ids[i], "_"), "[", 1), "_", as.numeric(sapply(strsplit(ids[i], "_"), "[", 2)) -3, "")
   
   #subset dataset based on current and previous 3 id_yrs
-  current.id <- onstop_yr_fin %>% filter(id_yr == ids[i]) 
+  current.id <- onhigh_yr_fin %>% filter(id_yr == ids[i]) 
   
   if(previous.id.1 %in% ids){
     
-    temp.1 <- onstop_yr_fin %>% filter(id_yr==previous.id.1)
+    temp.1 <- onhigh_yr_fin %>% filter(id_yr==previous.id.1)
     
     
     x.1 <- current.id %>% group_by(stop.n.c) %>% mutate(min.IYD.1 = as.numeric(min(sf::st_distance(geometry, temp.1, by_element = F)))) %>% ungroup()
@@ -379,7 +381,7 @@ for(i in 1:length(ids)){#length(ids)
   #second year
   if(previous.id.2 %in% ids){
     
-    temp.2 <- onstop_yr_fin %>% filter(id_yr==previous.id.2)
+    temp.2 <- onhigh_yr_fin %>% filter(id_yr==previous.id.2)
     
     x.2 <- current.id %>% group_by(stop.n.c) %>% mutate(min.IYD.2 = as.numeric(min(sf::st_distance(geometry, temp.2, by_element = F)))) %>% ungroup()
     mean.2 <- mean(x.2$min.IYD.2, na.rm = T)
@@ -393,7 +395,7 @@ for(i in 1:length(ids)){#length(ids)
   #third year
   if(previous.id.3 %in% ids){
     
-    temp.3 <- onstop_yr_fin %>% filter(id_yr==previous.id.3)
+    temp.3 <- onhigh_yr_fin %>% filter(id_yr==previous.id.3)
     
     x.3 <- current.id %>% group_by(stop.n.c) %>% mutate(min.IYD.3 = as.numeric(min(sf::st_distance(geometry, temp.3, by_element = F)))) %>% ungroup()
     mean.3 <- mean(x.3$min.IYD.3, na.rm = T)
@@ -411,13 +413,13 @@ for(i in 1:length(ids)){#length(ids)
   df <- rbind(df, df.full)
   }, error=function(e){})
 }
-IYD_mean_fidelity <- df
+IYD_HighUse_mean_fidelity <- df
 
 
 
 
 
-IYD_mean_fidelity <- IYD_mean_fidelity %>% mutate(id_yr = paste(AID,"_",curr_Y,sep=""))
+IYD_HighUse_mean_fidelity <- IYD_HighUse_mean_fidelity %>% mutate(id_yr = paste(AID,"_",curr_Y,sep=""))
 head(IYD_mean_fidelity)
 
 length(unique(IYD_mean_fidelity$AID)); length(unique(IYD_mean_fidelity$id_yr))
@@ -449,9 +451,9 @@ lst
 #--------------------------#
 # Save progress ####
 
-save(IYD_HighUse_stop_fidelity_list, IYD_stop_fidelity_list, IYD_HighUse_mean_fidelity_list, IYD_mean_fidelity_list, file = "C:/Users/lwilde2/Documents/Chapter2_StopoverFidelity/Data_out/Data/Stopover/FidelityMetrics_20230428.RData")
+save(IYD_HighUse_stop_fidelity_list, IYD_stop_fidelity_list, file = "C:/Users/lwilde2/Documents/Chapter2_StopoverFidelity/Data_out/Data/Stopover/FidelityMetrics_20230503.RData")
 
-
+#, IYD_HighUse_mean_fidelity_list, IYD_mean_fidelity_list
 
 
 

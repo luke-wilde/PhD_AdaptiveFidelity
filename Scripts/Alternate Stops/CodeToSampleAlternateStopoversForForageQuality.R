@@ -53,7 +53,7 @@ for(i in unique(onstop_yr_fin$id_yr)){
   #i = "255_2016"
   test <- onstop_yr_fin %>% filter(id_yr == i)
   test$flag <- 1
-  n = 30
+  n = 10
  set.sf1 <- set.sf %>% sample_n(n) %>% st_as_sf()
  
 for(j in 1:n){
