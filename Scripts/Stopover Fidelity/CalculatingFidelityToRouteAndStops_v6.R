@@ -85,7 +85,7 @@ data <- data %>% filter(AID %in% keep$AID)
 
 #Calculate distance from winter range for each point using NSDs ####
 #Create nsd object
-d <- data.frame()
+
 # 
 
 # dl <- Points2Lines(data = data,
@@ -100,26 +100,47 @@ d <- data.frame()
 # mapview(dl[1,]) + mapview(c, col.regions = "red") + mapview(cp)
 # 
 
+
+#note here what we can do is make an average line for each AID, then use that to assign the km
+
+
+
 datalines <- Points2Lines(data = data,
                    date_name = "POSIXct",
                    id_name = "id_yr",
                    byid = TRUE,
                    no_cores = 4)
+
+
+#now distance is references per AID, so that it is comparable across years
 d <- data[0,0]
-for(i in 1:length(unique(data$id_yr))){
+for(i in 1:length(unique(data$AID))){
  # i = 15
+  dl <- datalines %>% mutate(AID = str_sub(id_yr,0,3)) %>% filter(AID == unique(data$AID)[i])
+  c <- dl %>% group_by(AID) %>% st_simplify(dTolerance = 1500)
   
-  df <- data %>% filter(id_yr == unique(data$id_yr)[i])
-  dl <- datalines %>% filter(id_yr == unique(data$id_yr)[i])
-  c <- dl[1,] %>% group_by(id_yr) %>% st_simplify(dTolerance = 1500)
-  cp <- st_as_sf(st_line_sample(c, density = 0.001) %>% st_cast("POINT"))
+  lst <- list(length(unique(c$id_yr)), NA)
+ 
+  dat <- data %>% ungroup() %>% dplyr::filter(AID %in% unique(data$AID)[i])
+  
+  for(j in 1:length(st_geometry(c))){
+  #j = 3
+  
+  cp <- st_as_sf(c %>% filter(id_yr == c$id_yr[j]) %>% dplyr::summarise() %>% st_line_sample(., density = 0.001) %>% st_cast("POINT"))
   cp$dist <- seq(1,length(st_geometry(cp)),1)
   st_geometry(cp) <- "geometry"
   
-  df <- df %>% arrange(POSIXct) %>% group_by(POSIXct) %>% mutate(km_mark = cp$dist[sf::st_nearest_feature(geometry, cp, pairwise = F)])
+  lst[[j]] <- cp
+  rm(cp)
+ 
+  }#j
+
+  all <- do.call(rbind, lst) %>% group_by(dist) %>% summarise() %>% st_centroid()
   
-  d <- rbind(d, df)
-}
+  dat <- dat %>% ungroup() %>% group_by(POSIXct) %>% mutate(km_mark = all$dist[sf::st_nearest_feature(geometry, all, pairwise = F)])
+  
+  d <- rbind(d, dat)
+}#i
 
 data <- d
 
@@ -269,7 +290,7 @@ onhigh_yr_fin <- onstop_yr_fin %>% filter(TimeStopped >= 72)
 onstop_yr_fin <- onstop_yr_fin %>% filter(TimeStopped >= 24)
 
 setwd("C:/Users/lwilde2/Documents/PhD_AdaptiveFidelity/")
-save(onstop_yr_fin, data1, onhigh_yr_fin, file = "Data_out/Data/Stopover/RDH_StopoverBundle_14t22_20230506.RData") #crap accidentally overwrote on 20230503
+save(onstop_yr_fin, data1, onhigh_yr_fin, file = "Data_out/Data/Stopover/RDH_StopoverBundle_14t22_20230507.RData") #crap accidentally overwrote on 20230503
 
 #---------------------------------#
 #---------------------------------#
@@ -279,7 +300,7 @@ save(onstop_yr_fin, data1, onhigh_yr_fin, file = "Data_out/Data/Stopover/RDH_Sto
 
 
 
-load("Data_out/Data/Stopover/RDH_StopoverBundle_14t22_20230506.RData")
+load("Data_out/Data/Stopover/RDH_StopoverBundle_14t22_20230507.RData")
 
 
 
@@ -757,11 +778,12 @@ head(IYD_stop_fidelity)
 
 
 
-y1 <- ggplot( ) + geom_point(aes(x = (km_diff_1/1000),color = "#8B4513", y = (iyd_1/1000)), size = 3.6, data = IYD_stop_fidelity[,-c(6,16,26)] %>% filter(iyd_1 < 10000)) + geom_point(aes(x = (km_diff_1/1000), color = "#4682B4", y = (iyd_1/1000)), size = 3.6, data = IYD_stop_fidelity[,-c(6,16,26)] %>% filter(iyd_1 > 10000)) + geom_abline(slope = 1, intercept = 0, linewidth = 1.3) + theme_classic() + scale_color_manual(labels = c("> 10km", "< 10km"), values = c("#4682B4","#8B4533")) + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 13,color = "grey18"),axis.text.y = element_text(size = 13,color = "grey18"),legend.text = element_text(size = 16,color = "grey18"), legend.position = "none") + labs(y = "Inter-year distance", x = "") + coord_cartesian(ylim = c(0,150), xlim = c(0,150)) + scale_x_continuous(limits = c(0,150), breaks = seq(0,150,50)) + scale_y_continuous(limits = c(0,150), breaks = seq(0,150,50))
+y1 <- ggplot( ) + geom_point(aes(x = (km_diff_1/1000),color = "#8B4513", y = (iyd_1/1000)), size = 3.6, data = IYD_stop_fidelity[,-c(6,16,26)] %>% filter(iyd_1 < 10000)) + geom_point(aes(x = (km_diff_1/1000), color = "#4682B4", y = (iyd_1/1000)), size = 3.6, data = IYD_stop_fidelity[,-c(6,16,26)] %>% filter(iyd_1 > 10000)) + geom_abline(slope = 1, intercept = 0, linewidth = 1.3) + scale_color_manual(labels = c("> 10km", "< 10km"), values = c("#4682B4","#8B4533")) + theme_classic() + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 13,color = "grey18"),axis.text.y = element_text(size = 13,color = "grey18"),legend.text = element_text(size = 16,color = "grey18")) + labs(y = "Inter-year Distance", x = "Distance Along Route", color = "Inter-year Distance bin") + scale_x_continuous(expand = c(0, 0),limits = c(0,150), breaks = seq(0,150,50)) + scale_y_continuous(expand = c(0, 0), limits = c(0,150), breaks = seq(0,150,50))
 
-y2 <- ggplot( ) + geom_point(aes(x = (km_diff_2/1000), color = "#8B4523",y = (iyd_2/1000)), size = 3.6, data = IYD_stop_fidelity[,-c(6,26,26)] %>% filter(iyd_2 < 10000)) + geom_point(aes(x = (km_diff_2/1000), color = "#4682B4",y = (iyd_2/1000)), size = 3.6, data = IYD_stop_fidelity[,-c(6,26,26)] %>% filter(iyd_2 > 10000)) + geom_abline(slope = 1, intercept = 0, linewidth = 1.3) + theme_classic() + scale_color_manual(labels = c("> 10km", "< 10km"), values = c("#4682B4","#8B4533")) + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 13,color = "grey18"),axis.text.y = element_text(size = 13,color = "grey18"),legend.text = element_text(size = 16,color = "grey18"), legend.position = "none") + labs(x = "Route distance", y = "") + coord_cartesian(ylim = c(0,150), xlim = c(0,150)) + scale_x_continuous(limits = c(0,150), breaks = seq(0,150,50)) + scale_y_continuous(limits = c(0,150), breaks = seq(0,150,50))
+y2 <- ggplot( ) + geom_point(aes(x = (km_diff_2/1000), color = "#8B4523",y = (iyd_2/1000)), size = 3.6, data = IYD_stop_fidelity[,-c(6,26,26)] %>% filter(iyd_2 < 10000)) + geom_point(aes(x = (km_diff_2/1000), color = "#4682B4",y = (iyd_2/1000)), size = 3.6, data = IYD_stop_fidelity[,-c(6,26,26)] %>% filter(iyd_2 > 10000)) + geom_abline(slope = 1, intercept = 0, linewidth = 1.3) + theme_classic() + scale_color_manual(labels = c("> 10km", "< 10km"), values = c("#4682B4","#8B4533")) + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 13,color = "grey18"),axis.text.y = element_text(size = 13,color = "grey18"),legend.text = element_text(size = 16,color = "grey18"), legend.position = "none") + labs(x = "Route distance", y = "") + coord_cartesian(ylim = c(0,150), xlim = c(0,150)) + scale_x_continuous(expand = c(0, 0),limits = c(0,150), breaks = seq(0,150,50)) + scale_y_continuous(expand = c(0, 0),limits = c(0,150), breaks = seq(0,150,50))
 
-y3 <- ggplot( ) + geom_point(aes(x = (km_diff_3/1000), color = "#8B4533", y = (iyd_3/1000)), size = 3.6, data = IYD_stop_fidelity[,-c(6,36,26)] %>% filter(iyd_3 < 10000)) + geom_point(aes(x = (km_diff_3/1000), color = "#4682B4",y = (iyd_3/1000)), size = 3.6, data = IYD_stop_fidelity[,-c(6,36,26)] %>% filter(iyd_3 > 10000)) + geom_abline(slope = 1, intercept = 0, linewidth = 1.3) + theme_classic() + scale_color_manual(labels = c("> 10km", "< 10km"), values = c("#4682B4","#8B4533")) + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 13,color = "grey18"),axis.text.y = element_text(size = 13,color = "grey18"),legend.text = element_text(size = 16,color = "grey18")) + labs(y = "", x = "", color = "Inter-year Distance bin") + coord_cartesian(ylim = c(0,150), xlim = c(0,150)) + scale_x_continuous(limits = c(0,150), breaks = seq(0,150,50)) + scale_y_continuous(limits = c(0,150), breaks = seq(0,150,50))
+y3 <- ggplot( ) + geom_point(aes(x = (km_diff_3/1000), color = "#8B4533", y = (iyd_3/1000)), size = 3.6, data = IYD_stop_fidelity[,-c(6,36,26)] %>% filter(iyd_3 < 10000)) + geom_point(aes(x = (km_diff_3/1000), color = "#4682B4",y = (iyd_3/1000)), size = 3.6, data = IYD_stop_fidelity[,-c(6,36,26)] %>% filter(iyd_3 > 10000)) + geom_abline(slope = 1, intercept = 0, linewidth = 1.3) + theme_classic() + scale_color_manual(labels = c("> 10km", "< 10km"), values = c("#4682B4","#8B4533")) + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 13,color = "grey18"),axis.text.y = element_text(size = 13,color = "grey18"),legend.text = element_text(size = 16,color = "grey18")) + labs(y = "", x = "", color = "Inter-year Distance bin") + scale_x_continuous(expand = c(0, 0),limits = c(0,150), breaks = seq(0,150,50)) + scale_y_continuous(expand = c(0, 0), limits = c(0,150), breaks = seq(0,150,50))
 
-y1 + y2 + y3
+y1 #+ y2 + y3
 
+ggsave(filename = "Figures/RouteDistvsIYD_20230507.jpg", width = 30, height = 24, units = "cm", dpi = 600)
