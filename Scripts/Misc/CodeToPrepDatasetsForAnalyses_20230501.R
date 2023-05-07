@@ -388,11 +388,11 @@ summary(mod.DFP3.alt)$dev.expl
 
 #chose two year since has most deviance explained
 green <- RDH_14t22_greenscapes %>% rename(id_yr = AY_ID, AID = AnimalID)
-t2g <- t2_sum %>% left_join(green, by = c("id_yr")) %>% ungroup() %>% mutate(iyds = scale(iyd))
+t1g <- t1_sum %>% left_join(green, by = c("id_yr")) %>% ungroup() %>% mutate(iyds = scale(iyd))
 
 #t2g <- t2g %>% mutate(GUDs = scale(greenUpDur), SPSs = scale(springScale), SVSs = scale(svSlope), GUDc = ifelse(GUDs <= 0, "short", "long"), SPSc = ifelse(SPSs <= 0,  "fast", "slow" ), SVSc = ifelse(SVSs <= 0,"rand", "ord")) 
 
-t2g <- t2g %>% drop_na(iyd) %>% mutate(iydc = cut(iyd, breaks = quantile(iyd, seq(0, 1, by = 0.25)),include.lowest = TRUE, labels = FALSE)) %>% rename(Year = Year.x, AID = AID.x)
+t1g <- t1g %>% drop_na(iyd) %>% mutate(iydc = cut(iyd, breaks = quantile(iyd, seq(0, 1, by = 0.5)),include.lowest = TRUE, labels = FALSE)) %>% rename(Year = Year.x, AID = AID.x)
 
 #
 names(t2g)
@@ -403,15 +403,15 @@ names(t2g)
 
 
 
-mod.absDFP.GUD <- mgcv::gamm(round(absDFP,0) ~ s(greenUpDur, bs = "cs", k = 5, by = factor(iydc)) + km + TimeStopped, data = t2g %>% filter(iyd < 30000), method = "REML", random = list(id_yr=~1, Year = ~1, AID=~1), family = poisson(link = "log"))
-mod.absDFP.SPS <- mgcv::gamm(round(absDFP,0) ~ s(springScale, bs = "cs", k = 5, by = factor(iydc))  + km + TimeStopped, data = t2g%>% filter(iyd < 30000), method = "REML", random = list(id_yr=~1, Year = ~1, AID=~1), family = poisson(link = "log"))
-mod.absDFP.SVS <- mgcv::gamm(round(absDFP,0) ~ s(svSlope, bs = "cs", k = 5, by = factor(iydc))  + km + TimeStopped, data = t2g%>% filter(iyd < 30000), method = "REML", random = list(id_yr=~1, Year = ~1, AID=~1), family = poisson(link = "log"))
+mod.absDFP.GUD <- mgcv::gamm(round(absDFP,0) ~ s(greenUpDur, bs = "cs", k = 5, by = factor(iydc)), data = t1g %>% filter(iyd < 30000), method = "REML", random = list(id_yr=~1, Year = ~1, AID=~1), family = poisson(link = "log"))
+mod.absDFP.SPS <- mgcv::gamm(round(absDFP,0) ~ s(springScale, bs = "cs", k = 5, by = factor(iydc)), data = t1g%>% filter(iyd < 30000), method = "REML", random = list(id_yr=~1, Year = ~1, AID=~1), family = poisson(link = "log"))
+mod.absDFP.SVS <- mgcv::gamm(round(absDFP,0) ~ s(svSlope, bs = "cs", k = 5, by = factor(iydc)), data = t1g %>% filter(iyd < 30000), method = "REML", random = list(id_yr=~1, Year = ~1, AID=~1), family = poisson(link = "log"))
 
 
 
-newdata.gud <- data.frame(expand.grid(km = mean(t2g$km), iydc = factor(c(1,2,3,4)), TimeStopped = mean(t2g$TimeStopped), AID = "108", Year = 2017, id_yr = "108_2017", greenUpDur = seq(min(na.omit(t2g$greenUpDur)), max(na.omit(t2g$greenUpDur)), length = 50)))
-newdata.svs <- data.frame(expand.grid(km = mean(t2g$km), iydc = factor(c(1,2,3,4)), TimeStopped = mean(t2g$TimeStopped), AID = "108", Year = 2017, id_yr = "108_2017", svSlope = seq(min(na.omit(t2g$svSlope)), max(na.omit(t2g$svSlope)), length = 50)))
-newdata.sps = data.frame(expand.grid(km = mean(t2g$km), iydc = factor(c(1,2,3,4)), TimeStopped = mean(t2g$TimeStopped), AID = "108", Year = 2017, id_yr = "108_2017", springScale = seq(min(na.omit(t2g$springScale)), max(na.omit(t2g$springScale)), length = 50)))
+newdata.gud <- data.frame(expand.grid(km = mean(t2g$km), iydc = factor(c(1,2)), TimeStopped = mean(t2g$TimeStopped), AID = "108", Year = 2017, id_yr = "108_2017", greenUpDur = seq(min(na.omit(t2g$greenUpDur)), max(na.omit(t2g$greenUpDur)), length = 50)))
+newdata.svs <- data.frame(expand.grid(km = mean(t2g$km), iydc = factor(c(1,2)), TimeStopped = mean(t2g$TimeStopped), AID = "108", Year = 2017, id_yr = "108_2017", svSlope = seq(min(na.omit(t2g$svSlope)), max(na.omit(t2g$svSlope)), length = 50)))
+newdata.sps = data.frame(expand.grid(km = mean(t2g$km), iydc = factor(c(1,2)), TimeStopped = mean(t2g$TimeStopped), AID = "108", Year = 2017, id_yr = "108_2017", springScale = seq(min(na.omit(t2g$springScale)), max(na.omit(t2g$springScale)), length = 50)))
 
 
 
@@ -426,11 +426,11 @@ newdatapredSPS <- cbind(newdata.sps, predSPS)
 
 
 
-gud <- ggplot(newdatapredGUD) + geom_point(aes(x = greenUpDur, y = log(absDFP)), size = 6.5, alpha = .15, fill = "grey40", shape = 21, data = t2g) + geom_line(aes(x = greenUpDur, y = (prediction), color = factor(iydc)), size = 1.8) + labs(y = "ln(|Days from Peak Green-up|)", title = "", x = "Green-up duration (d)", color = "Fidelity Quartile") + theme_classic()  + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 17,color = "grey18"),axis.text.y = element_text(size = 17,color = "grey18"), legend.position = "none",legend.text = element_text(size = 16,color = "grey18"), title = element_text(size = 20,color = "grey18")) + scale_fill_manual(values = c("#87CEFA", "#6495ED","#0000FF","#191970"), label = c("Q1", "Q2","Q3","Q4")) + scale_color_manual(values = c("#87CEFA", "#6495ED","#0000FF","#191970"), label = c("Q1", "Q2","Q3","Q4")) + scale_y_continuous(limits = c(2.875, 3.925), breaks = seq(2.9,3.9,.1)) + scale_x_continuous(limits = c(50,150), breaks = seq(50,150,25)); gud
+gud <- ggplot(newdatapredGUD) + geom_point(aes(x = greenUpDur, y = log(absDFP)), size = 3.5, alpha = .15, shape = 21, color = "black", fill = "grey30", data = t1g) + geom_line(aes(x = greenUpDur, y = (prediction), color = factor(iydc)), size = 1.8) + labs(y = "ln(|Days from Peak Green-up|)", title = "", x = "Green-up duration (d)", color = "Fidelity Quartile", fill = "Fidelity Quartile") + theme_classic()  + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 17,color = "grey18"),axis.text.y = element_text(size = 17,color = "grey18"), legend.position = "none",legend.text = element_text(size = 16,color = "grey18"), title = element_text(size = 20,color = "grey18")) + scale_fill_manual(values = c( "#0000FF", "#87CEFA"), label = c("Above Average", "Below Average")) + scale_color_manual(values = c( "#0000FF", "#87CEFA"), label = c("Above Average", "Below Average")) + scale_y_continuous(limits = c(2.875, 3.925), breaks = seq(2.9,3.9,.1)) + scale_x_continuous(limits = c(50,150), breaks = seq(50,150,25)); gud
 
-svs <- ggplot(newdatapredSVS) + geom_point(aes(x = asin(svSlope^.5), y = log(absDFP)), size = 6.5, alpha = .15, fill = "grey40", shape = 21, data = t2g) + geom_line(aes(x = asin(svSlope^.5), y = (prediction), color = factor(iydc)), size = 1.8) + labs(y = "", title = "", x = "arcsin(Green-up Order)", color = "Fidelity Quartile") + theme_classic()  + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 17,color = "grey18"),axis.text.y = element_blank(), legend.position = "none",legend.text = element_text(size = 16,color = "grey18"), title = element_text(size = 20,color = "grey18")) + scale_fill_manual(values = c("#87CEFA", "#6495ED","#0000FF","#191970"), label = c("Q1", "Q2","Q3","Q4")) + scale_color_manual(values = c("#87CEFA", "#6495ED","#0000FF","#191970"), label = c("Q1", "Q2","Q3","Q4")) + scale_y_continuous(limits = c(2.875, 3.925), breaks = seq(2.9,3.9,.1))  + scale_x_continuous(limits = c(.2,.71), breaks = seq(.2,.7,.1)); svs
+svs <- ggplot(newdatapredSVS) + geom_point(aes(x = asin(svSlope^.5), y = log(absDFP)), fill = "grey30", size = 3.5, alpha = .15, shape = 21, color = "black", data = t1g) + geom_line(aes(x = asin(svSlope^.5), y = (prediction), color = factor(iydc)), size = 1.8) + labs(y = "", title = "", x = "arcsin(Green-up order)", color = "Fidelity Quartile", fill = "Fidelity Quartile") + theme_classic()  + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 17,color = "grey18"),axis.text.y = element_blank(), legend.position = "none",legend.text = element_text(size = 16,color = "grey18"), title = element_text(size = 20,color = "grey18")) + scale_fill_manual(values = c( "#0000FF", "#87CEFA"), label = c("Above Average", "Below Average")) + scale_color_manual(values = c( "#0000FF", "#87CEFA"), label = c("Above Average", "Below Average")) + scale_y_continuous(limits = c(2.875, 3.925), breaks = seq(2.9,3.9,.1))  + scale_x_continuous(limits = c(.2,.71), breaks = seq(.2,.7,.1)); svs
 
-sps <- ggplot(newdatapredSPS) + geom_point(aes(x = springScale, y = log(absDFP)), size = 6.5, alpha = .15, fill = "grey40", shape = 21, data = t2g) + geom_line(aes(x = springScale, y = (prediction), color = factor(iydc)), size = 1.8) + labs(y = "", x =  bquote('Spring scale'~('green-up rate' ^-1)), color = "Fidelity Quartile") + theme_classic()  + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 17,color = "grey18"),axis.text.y = element_blank(),legend.text = element_text(size = 16,color = "grey18"), title = element_text(size = 20,color = "grey18")) + scale_fill_manual(values = c("#87CEFA", "#6495ED","#0000FF","#191970"), label = c("Q1", "Q2","Q3","Q4")) + scale_color_manual(values = c("#87CEFA", "#6495ED","#0000FF","#191970"), label = c("Q1", "Q2","Q3","Q4")) + scale_y_continuous(limits = c(2.875, 3.925), breaks = seq(2.9,3.9,.1))  + scale_x_continuous(limits = c(14.95, 22.05), breaks = seq(15,22,1)); sps
+sps <- ggplot(newdatapredSPS) + geom_point(aes(x = springScale, y = log(absDFP)), fill = "grey30", size = 3.5, alpha = .15, shape = 21, color = "black", data = t1g) + geom_line(aes(x = springScale, y = (prediction), color = factor(iydc)), size = 1.8) + labs(y = "", x =  bquote('Spring scale'~('green-up rate' ^-1)), color = bquote('Morrison Fidelity'~('IYD')), fill = bquote('Morrison Fidelity'~('IYD'))) + theme_classic()  + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 17,color = "grey18"),axis.text.y = element_blank(),legend.text = element_text(size = 16,color = "grey18"), title = element_text(size = 20,color = "grey18")) + scale_fill_manual(values = c( "#0000FF", "#87CEFA"), label = c("Above Average", "Below Average")) + scale_color_manual(values = c( "#0000FF", "#87CEFA"), label = c("Above Average", "Below Average")) + scale_y_continuous(limits = c(2.875, 3.925), breaks = seq(2.9,3.9,.1))  + scale_x_continuous(limits = c(14.95, 22.05), breaks = seq(15,22,1)); sps
 
 
 
@@ -442,21 +442,27 @@ sps <- ggplot(newdatapredSPS) + geom_point(aes(x = springScale, y = log(absDFP))
 
 gud + svs + sps
 
-ggsave(filename = "Figures/GreenscapeByQuartile_20230504.jpg", width = 72, height = 24, units = "cm", dpi = 600)
+ggsave(filename = "Figures/GreenscapeMetricsByAvg_20230506.jpg", width = 72, height = 24, units = "cm", dpi = 600)
 
 
 
+#--------------------------------#
+# what does high Morrison mean ####
+
+stoploc <- hifid1 %>% mutate(stop.n.c = stop.n_1, km_mark = km_mark_1, TimeStopped = TimeStopped_1, Year = curr_Y) %>% group_by(stop.n.c) %>% mutate(km = round(mean(km_mark),0)) %>% select(id_yr, stop.n.c, km, TimeStopped, Year, prev_Y_1) %>% group_by(stop.n.c) %>% slice(1) %>% st_drop_geometry()
+
+head(stoploc)
 
 
-#compare the difference statistically
-gud <- difference_smooths(mod.absDFP.GUDc$gam, smooth = "s(iyd)", ci_level = 0.95)
-sps <- difference_smooths(mod.absDFP.SPSc, smooth = "s(iyd)", ci_level = 0.95)
-svs <- difference_smooths(mod.absDFP.SVSc, smooth = "s(iyd)", ci_level = 0.95)
+topbott <- t1_sum %>% drop_na(iyd) %>% mutate(km = round(km,0), Year = as.numeric(Year), prev_Y_1 = Year - 1) 
 
-ggplot() + geom_ribbon(data = gud, aes(x = iyd, ymax = upper, ymin=lower))
+#create a dataframe where we have iyd, this years stop, last years stop, then we can find the minimum distance between a given stop and all stops in the previous year thus getting at distance between stops
+
+topbott_now <- topbott %>% left_join(stoploc %>% dplyr::select(-prev_Y_1) %>% mutate(Year = as.numeric(Year)), by = c("stop.n.c", "km", "Year", "id_yr"))
+topbott_prev <- topbott %>% left_join(stoploc %>% dplyr::select(-Year) %>% mutate(prev_Y_1 = as.numeric(prev_Y_1)), by = c("stop.n.c", "km", "prev_Y_1", "id_yr"))
 
 
-
+topbott_prev
 
 
 
