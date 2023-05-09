@@ -23,8 +23,8 @@ source("Z:/MODIS_NDVI/info/ndviEXTRACT2.R")
 
 #------------------------------------#
 # load data and prep ####
-setwd("C:/Users/lwilde2/Documents/Chapter2_StopoverFidelity/")
-load("Data_out/Data/Stopover/RDH_AlternateStops_20230428.RData")
+#setwd("C:/Users/lwilde2/Documents/Chapter2_StopoverFidelity/")
+load("Data_out/Data/Stopover/RDH_AlternateStops_20230509.RData")
 
 data.sf <- st_as_sf(blank)
 st_crs(data.sf)
@@ -70,7 +70,7 @@ showConnections(); sfStop(); showConnections()
 
 AlternateStops_Bischof <- f
 
-save(AlternateStops_Bischof, file = "Data_out/Data/Stopover/RDH_AlternateStops_Bischof_20230428.RData")
+save(AlternateStops_Bischof, file = "Data_out/Data/Stopover/RDH_AlternateStops_Bischof_20230509.RData")
 
 
 

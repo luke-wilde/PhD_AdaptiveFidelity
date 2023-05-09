@@ -23,11 +23,12 @@ library(glmmTMB)
 
 #----------------------#
 # Load data ####
-setwd("C:/Users/lwilde2/Documents/Chapter2_StopoverFidelity/")
-load("Data_out/Data/Stopover/RDH_StopoverBundle_14t22_20230425.RData")
+setwd("C:/Users/lwilde2/Documents/PhD_AdaptiveFidelity/")
+load("Data_out/Data/Stopover/RDH_StopoverBundle_14t22_20230507.RData")
 
+load("Data_out/Data/Stopover/FidelityMetrics_20230507.RData")
 
-#----------------------#
+`#----------------------#
 # join with stops ####
 
 head(data1)
@@ -47,7 +48,10 @@ ggplot(clim, aes(x=km_rnd, y=sd)) + geom_line()
 
 moving <- data2 %>% filter(as.numeric(dist) > 2000)
 
-miglin <- Points2Lines(data = moving, date_name = "POSIXct", id_name = "id_yr", byid = T, no_cores = 4) %>% mutate(Year = year(firstdate))
+moving <- st_as_sf(moving %>% ungroup() %>% as.data.frame(), coords = c("xend", "yend"), crs = st_crs(onstop_yr_fin)$input)
+
+miglin <- Points2Lines(data = moving, date_name = "POSIXct", id_name = "id_yr", byid = T, no_cores = 4)
+miglin <- miglin %>% mutate(Year = year(firstdate))
 miglin
 
 df <- data1[0,0]
@@ -142,7 +146,38 @@ ggplot() + geom_point(aes(x = sd, y = OnStop), data = clim.var.data %>% sample_n
 #----------------------#
 # test for fidelity response to variability ####
 
-load("C:/Users/lwilde2/Documents/Chapter2_StopoverFidelity/Data_out/Data/Stopover/FidelityMetrics_20230428.RData")
+head(f)
+
+dat <- IYD_stop_fidelity_list[[1]] %>% mutate(km = round(km_mark_1, 0)) %>% left_join(f %>% dplyr::select(id_yr, km, sd, mean), by = c("id_yr", "km"))
+
+dat <- dat %>% mutate(fidc = cut(iyd_1, breaks = quantile(iyd_1, c(0,.5,1.00)),include.lowest = TRUE, labels = FALSE), sdc = scale(sd), kmcut = ifelse(km_mark_1 <= 80, "start", ifelse(km_mark_1 > 80 & km_mark_1 < 160, "middle", "end")))
+
+library(ggridges)
+
+ggplot(dat) + stat_density_ridges(aes(x = sd, fill = factor(fidc), y = kmcut, height = after_stat(density)), color = "black", linewidth = 1.2, alpha = .25, quantile_lines = TRUE, quantiles = 2, scale = .95) + theme_classic()+ labs(y = "Position En-route", x = "St. Dev. 22-year integrated-NDVI (scaled)", fill = "Fidelity", color = "Fidelity", stat = "density")  + scale_x_continuous(limits = c(-1.05,8), breaks = seq(-1,8,1)) + theme(axis.title.x = element_text(size = 36,color = "grey18"), axis.title.y = element_text(size = 36,color = "grey18"),axis.text.x = element_text(size = 30,color = "grey18"),axis.text.y = element_text(size = 30,color = "grey18"), legend.text = element_text(size = 30,color = "grey18"), legend.title = element_text(size = 32,color = "grey18"))  + geom_text(x=6, y=3.5, label="t(203)=0.71, p=0.48", family = "serif", size = 12) + geom_text(x=6, y=2.5, label="t(369)=0.25, p=0.79", family = "serif", size = 12) + geom_text(x=6, y=1.5, label="t(157)=0.34, p=0.73", family = "serif", size = 12) + scale_fill_manual(values = c("#FF4500","#008080"), labels = c("Above Average", "Below Average")) + scale_color_manual(values = c("#FF4500","#008080"), labels = c("Above Average", "Below Average"))
+
+# route1 <- ggplot(dat %>% filter(km < 80)) + geom_vline(aes(xintercept = sd, group = factor(fidc), color = factor(fidc)),  linewidth = 1.2, data = dat %>% filter(km < 80) %>% group_by(fidc) %>% summarise(sd = mean(na.omit(sd)))) + geom_density(aes(x = sd, fill = factor(fidc), y = after_stat(scaled)), color = "black", linewidth = 1.2, alpha = .25)  + theme_classic()+ theme(legend.position = "none") + labs(y = "Density", x = "")  + scale_x_continuous(limits = c(-1.05,8), breaks = seq(-1,8,1)) + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 17,color = "grey18"),axis.text.y = element_text(size = 14,color = "grey18"), legend.position = "none",legend.text = element_text(size = 16,color = "grey18"), title = element_text(size = 20,color = "grey18"))  + geom_text(x=-.25, y=.8, label="t(203)=0.71, p=0.48", family = "serif", size = 10) + scale_fill_manual(values = c("#FF4500","#008080"), labels = c("Above Average", "Below Average")) + scale_color_manual(values = c("#FF4500","#008080"), labels = c("Above Average", "Below Average"))
+# 
+# route2 <-ggplot(dat %>% filter(km > 80 & km < 160)) + geom_vline(aes(xintercept = sd, group = factor(fidc), color = factor(fidc)),  linewidth = 1.2, data = dat %>% filter(km > 80 & km < 160) %>% group_by(fidc) %>% summarise(sd = mean(na.omit(sd)))) + geom_density(aes(x = sd, fill = factor(fidc), y = after_stat(scaled)), color = "black", linewidth = 1.2, alpha = .3) + theme_classic() + labs(y = "Density", x = "", fill = "Fidelity", color = "Fidelity") + scale_x_continuous(limits = c(-1.05,8), breaks = seq(-1,8,1)) + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 17,color = "grey18"),axis.text.y = element_text(size = 14,color = "grey18"), legend.text = element_text(size = 26,color = "grey18"), title = element_text(size = 20,color = "grey18")) + geom_text(x=-.25, y=.8, label="t(369)=0.25, p=0.79", family = "serif", size = 10) + scale_fill_manual(values = c("#FF4500","#008080"), labels = c("Above Average", "Below Average")) + scale_color_manual(values = c("#FF4500","#008080"), labels = c("Above Average", "Below Average"))
+# 
+# route3 <-ggplot(dat %>% filter(km > 160 & km < 240)) + geom_vline(aes(xintercept = sd, group = factor(fidc), color = factor(fidc)),  linewidth = 1.2, data = dat %>% filter(km > 160 & km < 240) %>% group_by(fidc) %>% summarise(sd = mean(na.omit(sd)))) + geom_density(aes(x = sd, fill = factor(fidc), y = after_stat(scaled)), color = "black", linewidth = 1.2, alpha = .3) + theme_classic() + labs(y = "Density", x = "St. Dev. 22-year integrated-NDVI (scaled)") + theme(legend.position = "none") + scale_x_continuous(limits = c(-1.05,8), breaks = seq(-1,8,1)) + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 17,color = "grey18"),axis.text.y = element_text(size = 14,color = "grey18"), legend.position = "none",legend.text = element_text(size = 16,color = "grey18"), title = element_text(size = 20,color = "grey18")) + geom_text(x=-.25, y=.8, label="t(157)=0.34, p=0.73", family = "serif", size = 10) + scale_fill_manual(values = c("#FF4500","#008080"), labels = c("Above Average", "Below Average")) + scale_color_manual(values = c("#FF4500","#008080"), labels = c("Above Average", "Below Average"))
+# 
+# route1 + route2 + route3 + plot_layout(ncol = 1, nrow = 3)
+
+ggsave(filename = "Figures/LongTermBiomassProd_ridge_20230507.jpg", width = 48, height = 36, units = "cm", dpi = 600)
+
+library(lme4)
+
+summary(glm(sd ~ factor(fidc), family = Gamma(link = "log"), data = dat %>% filter(km < 80)))
+summary(glm(sd ~ factor(fidc), family = Gamma(link = "log"), data = dat %>% filter(km > 80 & km < 160)))
+summary(glm(sd ~ factor(fidc), family = Gamma(link = "log"), data = dat %>% filter(km > 160 & km < 240)))
+
+summary(lm(mean ~ factor(fidc), data = dat %>% filter(km < 80)))
+summary(lm(mean ~ factor(fidc), data = dat %>% filter(km > 80 & km < 160)))
+summary(lm(mean ~ factor(fidc), data = dat %>% filter(km > 160 & km < 240)))
+
+
+
 
 high_1 <- IYD_HighUse_stop_fidelity_list[[1]] %>% mutate(km = round(km_mark_1, 0))
 all_1 <- IYD_stop_fidelity_list[[1]] %>% mutate(km = round(km_mark_1, 0))

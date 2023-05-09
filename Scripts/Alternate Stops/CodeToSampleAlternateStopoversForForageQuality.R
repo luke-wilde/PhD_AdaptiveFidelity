@@ -22,12 +22,12 @@ library(scales)
 
 #------------------------------------------------------#
 #### load data ####
-load("C:/Users/lwilde2/Documents/Chapter2_StopoverFidelity/Data_out/Data/Stopover/RDH_StopoverBundle_14t22_20230425.RData")
+load("C:/Users/lwilde2/Documents/PhD_AdaptiveFidelity/Data_out/Data/Stopover/RDH_StopoverBundle_14t22_20230507.RData")
 
-test <- onstop_yr_fin %>% filter(id_yr == "255_2016")
-
-proj <- "+proj=utm +zone=12 +ellps=WGS84 +datum=WGS84 +units=m +no_defs+towgs84=0,0,0"
-test <- st_transform(test, proj)
+# test <- onstop_yr_fin %>% filter(id_yr == "255_2016")
+# 
+# proj <- "+proj=utm +zone=12 +ellps=WGS84 +datum=WGS84 +units=m +no_defs+towgs84=0,0,0"
+# test <- st_transform(test, proj)
 
 #test <- test 
 
@@ -38,8 +38,8 @@ set.seed(163)
 
 
 n = 100
-xlim = 7000
-ylim = 7000
+xlim = 10000
+ylim = 10000
 
 set <- data.frame(xset = runif(n, -xlim, xlim), yset = runif(n, -ylim, ylim))
 
@@ -48,12 +48,19 @@ set.sf <- set %>% st_as_sf(coords = c("xset", "yset"), crs = proj)
 #------------------------------------------------------#
 #### create available points  ####
 
+
+keep <- c("Mgtry"       ,"AID"         ,"CllrSrN"     ,"Frequency"   ,"POSIXct"     ,"Month"      
+ ,"Day"         ,"Year"        ,"Date"        ,"Time"        ,"Lat"         ,"Long"       
+ ,"JDate"       ,"id_yr"       ,"dist"        ,"diff"        ,"speed"       ,"AvgFixRate" 
+ ,"Complete"    ,"date"        ,"xend"        ,"yend"        ,"km_mark"     ,"stop.n"     
+ ,"year"        ,"stop.n.c"    ,"minT"        ,"maxT"        ,"TimeStopped")
+
 blank <- onstop_yr_fin[0,0]
 for(i in unique(onstop_yr_fin$id_yr)){
   #i = "255_2016"
   test <- onstop_yr_fin %>% filter(id_yr == i)
   test$flag <- 1
-  n = 10
+  n = 5
  set.sf1 <- set.sf %>% sample_n(n) %>% st_as_sf()
  
 for(j in 1:n){
@@ -62,7 +69,7 @@ for(j in 1:n){
   x <- st_as_sf(t$geometry + set.sf1$geometry[j], crs = proj)
   st_geometry(x) <- "geometry"
   x$flag <- 0
-  x <- st_as_sf(cbind(test %>% st_drop_geometry() %>% dplyr::select(names(test)[c(1:22,36:38,40:43)]),x), crs = proj)
+  x <- st_as_sf(cbind(test %>% st_drop_geometry() %>% dplyr::select(keep),x), crs = proj)
   blank <- rbind(x,blank)
   rm(x)
   }#n
@@ -71,8 +78,8 @@ for(j in 1:n){
 length(unique(blank$id_yr))
 length(unique(onstop_yr_fin$id_yr))
 
-setwd("C:/Users/lwilde2/Documents/Chapter2_StopoverFidelity/")
-save(blank, file = "Data_out/Data/Stopover/RDH_AlternateStops_20230428.RData")
+#setwd("C:/Users/lwilde2/Documents/Chapter2_StopoverFidelity/")
+save(blank, file = "Data_out/Data/Stopover/RDH_AlternateStops_20230509.RData")
 
 
 

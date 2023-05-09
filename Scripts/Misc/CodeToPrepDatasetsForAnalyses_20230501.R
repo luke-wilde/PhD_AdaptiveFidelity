@@ -1,5 +1,6 @@
 # Script for modelling
 
+
 ## Hypotheses
 
 #Greenscape quality and fidelity affect surfing score
@@ -17,7 +18,7 @@
 # how does mismatch change when using previously visited or not visited stop
 ## DaysDiff ~ Status
 
-load("REnvs/ModellingEnvironment.rds")
+load("REnvs/EnvForRunningMostGams_20230509.RDS")
 
 #### Set up ####
 library(sf)
@@ -48,7 +49,7 @@ library(mgcv)
 library(mgcViz)
 library(visreg)
 library(tidymv)
-remotes::install_github("stefanocoretta/tidygam@v0.1.0")
+#remotes::install_github("stefanocoretta/tidygam@v0.1.0")
 library(tidygam)
 library(StatisticalModels)
 library(patchwork)
@@ -59,7 +60,7 @@ library(gammit)
 
 setwd("C:/Users/lwilde2/Documents/PhD_AdaptiveFidelity/")
 load("Data_out/Data/Stopover/RDH_StopoverBundle_14t22_20230425.RData")
-load("Data_out/Data/Stopover/FidelityMetrics_20230503.RData")
+load("Data_out/Data/Stopover/FidelityMetrics_20230507.RData")
 #load("Data_out/Data/Stopover/RDH_AlternateStops_Bischof_20230428.RData")
 load("Data_out/Data/Greenscape/RDH_14t22_greenscapes_20230425.RData")
 #load("Data_out/Data/Stopover/RDH_UsedAvailStops_14t22_20230428.RData")
@@ -75,18 +76,10 @@ load("C:/Users/lwilde2/Desktop/RDH Database/Processed Data/RDH_AllMigrations_Bis
 fid1 <- IYD_stop_fidelity_list[[1]]
 fid2 <- IYD_stop_fidelity_list[[2]]
 fid3 <- IYD_stop_fidelity_list[[3]]
-
-# himeanfid1 <- IYD_HighUse_mean_fidelity_list[[1]]
-# himeanfid2 <- IYD_HighUse_mean_fidelity_list[[2]]
-# himeanfid3 <- IYD_HighUse_mean_fidelity_list[[3]]
-
-hifid1 <- IYD_HighUse_stop_fidelity_list[[1]]
-hifid2 <- IYD_HighUse_stop_fidelity_list[[2]]
-hifid3 <- IYD_HighUse_stop_fidelity_list[[3]]
-
-# x <- himeanfid1 %>% filter(AID %in% himeanfid2$AID | AID %in% himeanfid3$AID) %>% dplyr::select(AID)
-# x1 <- himeanfid2 %>% filter(AID %in% himeanfid3$AID) %>% select(AID) %>% dplyr::select(AID)
-
+fid4 <- IYD_stop_fidelity_list[[4]]
+fid5 <- IYD_stop_fidelity_list[[5]]
+fid6 <- IYD_stop_fidelity_list[[6]]
+fid7 <- IYD_stop_fidelity_list[[7]]
 
 #greenscape data
 RDH_14t22_greenscapes
@@ -95,10 +88,6 @@ onstop_yr_fin
 #full data
 data1
 #fidelity
-himeanfid1
-himeanfid2
-himeanfid3
-
 fid1
 fid2
 fid3
@@ -112,18 +101,62 @@ fid3
 #response to mismatch
 
 
-ggplot(fid1) + theme(legend.position = "none") + coord_cartesian(xlim = c(0,220), ylim = c(0,100000)) + geom_point(aes(x = km_mark_1, y = iyd_1, group = AID, color = AID),  alpha = .2) + geom_smooth(aes(x = km_mark_1, y = iyd_1)) #geom_line(aes(x = km_mark_1, y = iyd_1, group = AID, color = AID)) +
+#-------------------------------#
+# consistency in fidelity ####
+
+#to km
+
+#in individuals
+
+#process data
+
+iyddat <- IYD_stop_fidelity_list
+
+names(iyddat[[1]]) <- c("iyd", "SpatOver",    "stop.n",  "km_mark",  "km_prev", "TimeStopped", "curr_Y", "prev_Y", "AID",    "id_yr")
+names(iyddat[[2]]) <- c("iyd", "SpatOver",    "stop.n",  "km_mark",  "km_prev", "TimeStopped", "curr_Y", "prev_Y", "AID",    "id_yr")
+names(iyddat[[3]]) <- c("iyd", "SpatOver",    "stop.n",  "km_mark",  "km_prev", "TimeStopped", "curr_Y", "prev_Y", "AID",    "id_yr")
+names(iyddat[[4]]) <- c("iyd", "SpatOver",    "stop.n",  "km_mark",  "km_prev", "TimeStopped", "curr_Y", "prev_Y", "AID",    "id_yr")
+names(iyddat[[5]]) <- c("iyd", "SpatOver",    "stop.n",  "km_mark",  "km_prev", "TimeStopped", "curr_Y", "prev_Y", "AID",    "id_yr")
+names(iyddat[[6]]) <- c("iyd", "SpatOver",    "stop.n",  "km_mark",  "km_prev", "TimeStopped", "curr_Y", "prev_Y", "AID",    "id_yr")
+names(iyddat[[7]]) <- c("iyd", "SpatOver",    "stop.n",  "km_mark",  "km_prev", "TimeStopped", "curr_Y", "prev_Y", "AID",    "id_yr")
+
+all <- do.call(rbind, iyddat)
+
+all$ydiff <- as.numeric(all$curr_Y) - as.numeric(all$prev_Y)
+
+all.sum <- all %>% group_by(id_yr, ydiff) %>% summarise(stop.n = n(), mean.iyd = mean(iyd))
+
+ggplot(all.sum) + geom_line(aes(x = ydiff, y = mean.iyd/1000, color = id_yr), linewidth = 1.4, alpha = .5) + theme_classic() + theme(legend.position = "none") + labs(x = "Years Between Migration Events", y = bquote('Mean Inter-year Distance (km) '~(Fidelity ^-1))) + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 13,color = "grey18"),axis.text.y = element_text(size = 13,color = "grey18"),legend.text = element_text(size = 16,color = "grey18")) + coord_cartesian(xlim = c(1,7), ylim = c(0,80)) + scale_x_continuous(expand = c(0,0), limits = c(1,7), breaks = seq(1,7,1))  + scale_y_continuous(expand = c(0,0), limits = c(0,80), breaks = seq(0,80,10))
+
+head(all)
+
+mod.km.eff <- mgcv::gamm(round(iyd,0) ~ s(km_mark, by = factor(ydiff), bs = "cs", k = 5), method = "GCV", random = list(id_yr=~1, curr_Y = ~1, AID=~1), family = poisson(link = "log"), data = all %>% filter(km_mark < 240))
+mod.km.eff2 <- mgcv::gamm(round(iyd,0) ~ s(km_mark, bs = "cs", k = 5), method = "GCV", random = list(id_yr=~1, curr_Y = ~1, AID=~1), weights = 1/ydiff, family = poisson(link = "log"), data = all %>% filter(km_mark < 240))
+
+plot.gam(mod.km.eff2$gam)
+
+newdata = data.frame(expand.grid(km_mark = seq(1,240,by = 1), ydiff = seq(1,7,by = 1), AID = "108", curr_Y = 2017, id_yr = "108_2017"))
+newdata$pred <- gammit::predict_gamm(mod.km.eff2$gam , newdata = newdata, se = T)$prediction
+newdata$se <- gammit::predict_gamm(mod.km.eff2$gam , newdata = newdata, se = T)$se
+
+ggplot(data = newdata) + geom_line(aes(x = km_mark, y = pred), linewidth = 1.2) + geom_ribbon(aes(x = km_mark, ymin = pred - se, ymax = pred + se), alpha = .2) + theme_classic()
+
+
+
+
+
+# ggplot(fid1) + theme(legend.position = "none") + coord_cartesian(xlim = c(0,220), ylim = c(0,100000)) + geom_point(aes(x = km_mark_1, y = iyd_1, group = AID, color = AID),  alpha = .2) + geom_smooth(aes(x = km_mark_1, y = iyd_1)) #geom_line(aes(x = km_mark_1, y = iyd_1, group = AID, color = AID)) +
 
 
 # First hypothesis, accumulated iyd should hurt ability to surf - decay of information?
 
-t1 <- onhigh_yr_fin %>% left_join(hifid1 %>% dplyr::select(iyd_1, stop.n_1, km_mark_1, id_yr) %>% rename(stop.n.c = stop.n_1), by = c("stop.n.c", "id_yr")) %>% arrange(id_yr, POSIXct)
+t1 <- onstop_yr_fin %>% left_join(fid1 %>% dplyr::select(iyd_1, stop.n_1, km_mark_1, id_yr) %>% rename(stop.n.c = stop.n_1), by = c("stop.n.c", "id_yr")) %>% arrange(id_yr, POSIXct)
 t1 <- t1 %>% mutate(DFP = JDate - MaxIRGday, absDFP = abs(DFP))
 
-t2 <- onhigh_yr_fin %>% left_join(hifid2 %>% dplyr::select(iyd_2, stop.n_2, km_mark_2, id_yr) %>% rename(stop.n.c = stop.n_2), by = c("stop.n.c", "id_yr")) %>% arrange(id_yr, POSIXct)
+t2 <- onstop_yr_fin %>% left_join(fid2 %>% dplyr::select(iyd_2, stop.n_2, km_mark_2, id_yr) %>% rename(stop.n.c = stop.n_2), by = c("stop.n.c", "id_yr")) %>% arrange(id_yr, POSIXct)
 t2 <- t2 %>% mutate(DFP = JDate - MaxIRGday, absDFP = abs(DFP))
 
-t3 <- onhigh_yr_fin %>% left_join(hifid3 %>% dplyr::select(iyd_3, stop.n_3, km_mark_3, id_yr) %>% rename(stop.n.c = stop.n_3), by = c("stop.n.c", "id_yr")) %>% arrange(id_yr, POSIXct)
+t3 <- onstop_yr_fin %>% left_join(fid3 %>% dplyr::select(iyd_3, stop.n_3, km_mark_3, id_yr) %>% rename(stop.n.c = stop.n_3), by = c("stop.n.c", "id_yr")) %>% arrange(id_yr, POSIXct)
 t3 <- t3 %>% mutate(DFP = JDate - MaxIRGday, absDFP = abs(DFP)) 
 
 #cumulative iyd of each point
@@ -244,12 +277,12 @@ ggplot() + geom_density(data = t1_sum, aes(x = iyd/1000), bounds = c(0, 250), fi
 #---------------------------------#
 # start the gams ####
 
-mod.absDFP1 <- mgcv::gamm(round(absDFP,0) ~ s(iyd, bs = "cs", k = 5) + km + TimeStopped, data = t1_sum %>% filter(iyd < 30000), method = "REML", random = list(id_yr=~1, Year = ~1, AID=~1), family = poisson(link = "log"))
-mod.absDFP2 <- mgcv::gamm(round(absDFP,0) ~ s(iyd, bs = "cs", k = 5) + km + TimeStopped, data = t2_sum%>% filter(iyd < 30000), method = "REML", random = list(id_yr=~1, Year = ~1, AID=~1), family = poisson(link = "log"))
-mod.absDFP3 <- mgcv::gamm(round(absDFP,0) ~ s(iyd, bs = "cs", k = 5) + km + TimeStopped, data = t3_sum%>% filter(iyd < 30000), method = "REML", random = list(id_yr=~1, Year = ~1, AID=~1), family = poisson(link = "log"))
+mod.absDFP1 <- mgcv::gamm(round(absDFP,0) ~ s(iyd, bs = "cs", k = 5), data = t1_sum %>% filter(iyd < 15000), method = "GCV", random = list(id_yr=~1, Year = ~1, AID=~1), family = poisson(link = "log")) # + km + TimeStopped
+mod.absDFP2 <- mgcv::gamm(round(absDFP,0) ~ s(iyd, bs = "cs", k = 5) , data = t2_sum%>% filter(iyd < 15000), method = "GCV", random = list(id_yr=~1, Year = ~1, AID=~1), family = poisson(link = "log"))
+mod.absDFP3 <- mgcv::gamm(round(absDFP,0) ~ s(iyd, bs = "cs", k = 5) , data = t3_sum%>% filter(iyd < 15000), method = "GCV", random = list(id_yr=~1, Year = ~1, AID=~1), family = poisson(link = "log"))
 
 
-newdata = data.frame(km = mean(t1_sum$km), iyd = seq(1,30000,length = 100), TimeStopped = mean(t1_sum$TimeStopped), AID = "108", Year = 2017, id_yr = "108_2017")
+newdata = data.frame(km = mean(t1_sum$km), iyd = seq(1,15000,length = 100), TimeStopped = mean(t1_sum$TimeStopped), AID = "108", Year = 2017, id_yr = "108_2017")
 pred1 <- gammit::predict_gamm(mod.absDFP1$gam , newdata = newdata, se = T)
 pred2 <- gammit::predict_gamm(mod.absDFP2$gam , newdata = newdata, se = T)
 pred3 <- gammit::predict_gamm(mod.absDFP3$gam , newdata = newdata, se = T)
@@ -265,9 +298,9 @@ newdata3$Year <- 3
 
 new <- rbind(newdata1, newdata2, newdata3)
 
-ggplot(new) + geom_ribbon(aes(x = iyd/1000, ymax = exp(prediction) + exp(se), ymin = exp(prediction) - exp(se), group = factor(Year)), fill = "#008B8B", alpha = .33) + geom_line(aes(x = iyd/1000, y = exp(prediction), linetype = factor(Year)), size = .8) + labs(y = "|Days from Peak Green-up|", x = bquote('Inter-year Distance (km)'~( Fidelity ^-1)), linetype = "") + theme_classic()  + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 13,color = "grey18"),axis.text.y = element_text(size = 13,color = "grey18"),legend.text = element_text(size = 16,color = "grey18")) + scale_linetype_manual(values = c("solid", "dashed", "dotted"), label = c("t-1", "t-2", "t-3")) + coord_cartesian(ylim = c(15,45), xlim = c(0,30)) + scale_y_continuous(limits= c(14.8,50.2), breaks = seq(15,50,5)) + scale_x_continuous(limits= c(0,30), breaks = seq(0,30,5))
+ggplot(new) + geom_ribbon(aes(x = iyd/1000, ymax = exp(prediction) + exp(se), ymin = exp(prediction) - exp(se), group = factor(Year)), fill = "#008B8B", alpha = .33) + geom_line(aes(x = iyd/1000, y = exp(prediction), linetype = factor(Year)), size = .8) + labs(y = "|Days from Peak Green-up|", x = bquote('Inter-year Distance (km)'~( Fidelity ^-1)), linetype = "") + theme_classic()  + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 13,color = "grey18"),axis.text.y = element_text(size = 13,color = "grey18"),legend.text = element_text(size = 16,color = "grey18")) + scale_linetype_manual(values = c("solid", "dashed", "dotted"), label = c("t-1", "t-2", "t-3")) + coord_cartesian(ylim = c(15,45), xlim = c(0,15)) + scale_y_continuous(limits= c(14.8,50.2), breaks = seq(15,50,5)) + scale_x_continuous(limits= c(0,15), breaks = seq(0,15,3))
  
-ggsave(filename = "Figures/ResponseToIYD_gam_absDFP_trunc_20230504.jpg", width = 30, height = 30, units = "cm", dpi = 600)
+ggsave(filename = "Figures/ResponseToIYD_gam_absDFP_20230508.jpg", width = 30, height = 30, units = "cm", dpi = 600)
 
 
 
@@ -276,9 +309,9 @@ ggsave(filename = "Figures/ResponseToIYD_gam_absDFP_trunc_20230504.jpg", width =
 
 
 
-mod.DFP1 <- mgcv::gamm(DFP ~ s(iyd, bs = "cs", k = 5) + km + TimeStopped, data = t1_sum, method = "REML", random = list(id_yr=~1, Year = ~1, AID=~1))
-mod.DFP2 <- mgcv::gamm(DFP ~ s(iyd, bs = "cs", k = 5) + km + TimeStopped, data = t2_sum, method = "REML", random = list(id_yr=~1, Year = ~1, AID=~1))
-mod.DFP3 <- mgcv::gamm(DFP ~ s(iyd, bs = "cs", k = 5) + km + TimeStopped, data = t3_sum, method = "REML", random = list(id_yr=~1, Year = ~1, AID=~1))
+mod.DFP1 <- mgcv::gamm(DFP ~ s(iyd, bs = "cs", k = 5)  + km + TimeStopped, data = t1_sum, method = "REML", random = list(id_yr=~1, Year = ~1, AID=~1))
+mod.DFP2 <- mgcv::gamm(DFP ~ s(iyd, bs = "cs", k = 5)  + km + TimeStopped, data = t2_sum, method = "REML", random = list(id_yr=~1, Year = ~1, AID=~1))
+mod.DFP3 <- mgcv::gamm(DFP ~ s(iyd, bs = "cs", k = 5)  + km + TimeStopped, data = t3_sum, method = "REML", random = list(id_yr=~1, Year = ~1, AID=~1))
 
 
 newdata = data.frame(km = mean(t1_sum$km), iyd = seq(1,50000,length = 100), TimeStopped = mean(t1_sum$TimeStopped), AID = "108", Year = 2017, id_yr = "108_2017")
@@ -297,7 +330,7 @@ newdata3$Year <- 3
 
 new <- rbind(newdata1, newdata2, newdata3)
 
-ggplot(new) + geom_ribbon(aes(x = iyd, ymax = (prediction) + (se), ymin = (prediction) - (se), group = factor(Year)), fill = "#008B8B", alpha = .33) + geom_line(aes(x = iyd, y = (prediction), linetype = factor(Year)), size = .8) + labs(y = "|Days from Peak Green-up|", x = bquote('Inter-year Distance (m)'~( Fidelity ^-1)), linetype = "") + theme_classic()  + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 13,color = "grey18"),axis.text.y = element_text(size = 13,color = "grey18"),legend.text = element_text(size = 16,color = "grey18")) + scale_linetype_manual(values = c("solid", "dashed", "dotted"), label = c("t-1", "t-2", "t-3")) + coord_cartesian(ylim = c(5,45), xlim = c(0,50000)) + scale_y_continuous(limits= c(4.8,50.2), breaks = seq(5,50,5)) + scale_x_continuous(limits= c(0,50000), breaks = seq(0,50000,10000))
+ggplot(new) + geom_ribbon(aes(x = iyd, ymax = (prediction) + (se), ymin = (prediction) - (se), group = factor(Year)), fill = "#008B8B", alpha = .33) + geom_line(aes(x = iyd, y = (prediction), linetype = factor(Year)), size = .8) + labs(y = "Days from Peak Green-up", x = bquote('Inter-year Distance (m)'~( Fidelity ^-1)), linetype = "") + theme_classic()  + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 13,color = "grey18"),axis.text.y = element_text(size = 13,color = "grey18"),legend.text = element_text(size = 16,color = "grey18")) + scale_linetype_manual(values = c("solid", "dashed", "dotted"), label = c("t-1", "t-2", "t-3")) + coord_cartesian(ylim = c(5,45), xlim = c(0,50000)) + scale_y_continuous(limits= c(4.8,50.2), breaks = seq(5,50,5)) + scale_x_continuous(limits= c(0,50000), breaks = seq(0,50000,10000))
 
 ggsave(filename = "Figures/ResponseToIYD_gam_DFP_20230503.jpg", width = 24, height = 24, units = "cm", dpi = 600)
 
@@ -350,100 +383,238 @@ qqnorm(E6); qqline(E6, col="red")
 
 
 
+
+
+
+
 #---------------------------#
 # goodness of fit ####
 
 
-mod.absDFP1.alt <- mgcv::gam(round(absDFP,0) ~ s(iyd, bs = "cs", k = 5) + km + TimeStopped + s(fid, bs = "re") + s(fy, bs = "re") + s(faid, bs = "re"), data = t1_sum %>% mutate(fid = factor(id_yr), fy = factor(Year), faid = factor(AID)), method = "REML", family = poisson(link = "log"))
-mod.absDFP2.alt <- mgcv::gam(round(absDFP,0) ~ s(iyd, bs = "cs", k = 5) + km + TimeStopped + s(fid, bs = "re") + s(fy, bs = "re") + s(faid, bs = "re"), data = t2_sum %>% mutate(fid = factor(id_yr), fy = factor(Year), faid = factor(AID)), method = "REML", family = poisson(link = "log"))
-mod.absDFP3.alt <- mgcv::gam(round(absDFP,0) ~ s(iyd, bs = "cs", k = 5) + km + TimeStopped+ s(fid, bs = "re") + s(fy, bs = "re") + s(faid, bs = "re"), data = t3_sum %>% mutate(fid = factor(id_yr), fy = factor(Year), faid = factor(AID)), method = "REML",  family = poisson(link = "log"))
+mod.absDFP1.alt <- mgcv::gam(round(absDFP,0) ~ s(iyd, bs = "cs", k = 5) + s(fid, bs = "re") + s(fy, bs = "re") + s(faid, bs = "re"), data = t1_sum %>% mutate(fid = factor(id_yr), fy = factor(Year), faid = factor(AID)), method = "REML", family = poisson(link = "log"))
+mod.absDFP2.alt <- mgcv::gam(round(absDFP,0) ~ s(iyd, bs = "cs", k = 5) + s(fid, bs = "re") + s(fy, bs = "re") + s(faid, bs = "re"), data = t2_sum %>% mutate(fid = factor(id_yr), fy = factor(Year), faid = factor(AID)), method = "REML", family = poisson(link = "log"))
+mod.absDFP3.alt <- mgcv::gam(round(absDFP,0) ~ s(iyd, bs = "cs", k = 5) + s(fid, bs = "re") + s(fy, bs = "re") + s(faid, bs = "re"), data = t3_sum %>% mutate(fid = factor(id_yr), fy = factor(Year), faid = factor(AID)), method = "REML",  family = poisson(link = "log"))
 
 summary(mod.absDFP1.alt)$dev.expl
 summary(mod.absDFP2.alt)$dev.expl
 summary(mod.absDFP3.alt)$dev.expl
 
 #without iyd
-mod.absDFP1.altx <- mgcv::gam(round(absDFP,0) ~  km + TimeStopped + s(fid, bs = "re") + s(fy, bs = "re") + s(faid, bs = "re"), data = t1_sum %>% mutate(fid = factor(id_yr), fy = factor(Year), faid = factor(AID)), method = "REML", family = poisson(link = "log"))
-mod.absDFP2.altx <- mgcv::gam(round(absDFP,0) ~  km + TimeStopped + s(fid, bs = "re") + s(fy, bs = "re") + s(faid, bs = "re"), data = t2_sum %>% mutate(fid = factor(id_yr), fy = factor(Year), faid = factor(AID)), method = "REML", family = poisson(link = "log"))
-mod.absDFP3.altx <- mgcv::gam(round(absDFP,0) ~  km + TimeStopped+ s(fid, bs = "re") + s(fy, bs = "re") + s(faid, bs = "re"), data = t3_sum %>% mutate(fid = factor(id_yr), fy = factor(Year), faid = factor(AID)), method = "REML",  family = poisson(link = "log"))
+mod.absDFP1.altx <- mgcv::gam(round(absDFP,0) ~  s(fid, bs = "re") + s(fy, bs = "re") + s(faid, bs = "re"), data = t1_sum %>% mutate(fid = factor(id_yr), fy = factor(Year), faid = factor(AID)), method = "REML", family = poisson(link = "log"))
+mod.absDFP2.altx <- mgcv::gam(round(absDFP,0) ~   s(fid, bs = "re") + s(fy, bs = "re") + s(faid, bs = "re"), data = t2_sum %>% mutate(fid = factor(id_yr), fy = factor(Year), faid = factor(AID)), method = "REML", family = poisson(link = "log"))
+mod.absDFP3.altx <- mgcv::gam(round(absDFP,0) ~   s(fid, bs = "re") + s(fy, bs = "re") + s(faid, bs = "re"), data = t3_sum %>% mutate(fid = factor(id_yr), fy = factor(Year), faid = factor(AID)), method = "REML",  family = poisson(link = "log"))
 
 summary(mod.absDFP1.altx)$dev.expl
 summary(mod.absDFP2.altx)$dev.expl
 summary(mod.absDFP3.altx)$dev.expl
 
-mod.DFP1.alt <- mgcv::gam(DFP ~ s(iyd, bs = "cs", k = 5) + km + TimeStopped + s(fid, bs = "re") + s(fy, bs = "re") + s(faid, bs = "re"), data = t1_sum %>% mutate(fid = factor(id_yr), fy = factor(Year), faid = factor(AID)), method = "REML")
-mod.DFP2.alt <- mgcv::gam(DFP ~ s(iyd, bs = "cs", k = 5) + km + TimeStopped + s(fid, bs = "re") + s(fy, bs = "re") + s(faid, bs = "re"), data = t2_sum %>% mutate(fid = factor(id_yr), fy = factor(Year), faid = factor(AID)), method = "REML")
-mod.DFP3.alt <- mgcv::gam(DFP ~ s(iyd, bs = "cs", k = 5) + km + TimeStopped + s(fid, bs = "re") + s(fy, bs = "re") + s(faid, bs = "re"), data = t3_sum %>% mutate(fid = factor(id_yr), fy = factor(Year), faid = factor(AID)), method = "REML")
+# mod.DFP1.alt <- mgcv::gam(DFP ~ s(iyd, bs = "cs", k = 5) + km + TimeStopped + s(fid, bs = "re") + s(fy, bs = "re") + s(faid, bs = "re"), data = t1_sum %>% mutate(fid = factor(id_yr), fy = factor(Year), faid = factor(AID)), method = "REML")
+# mod.DFP2.alt <- mgcv::gam(DFP ~ s(iyd, bs = "cs", k = 5) + km + TimeStopped + s(fid, bs = "re") + s(fy, bs = "re") + s(faid, bs = "re"), data = t2_sum %>% mutate(fid = factor(id_yr), fy = factor(Year), faid = factor(AID)), method = "REML")
+# mod.DFP3.alt <- mgcv::gam(DFP ~ s(iyd, bs = "cs", k = 5) + km + TimeStopped + s(fid, bs = "re") + s(fy, bs = "re") + s(faid, bs = "re"), data = t3_sum %>% mutate(fid = factor(id_yr), fy = factor(Year), faid = factor(AID)), method = "REML")
+# 
+# 
+# summary(mod.DFP1.alt)$dev.expl
+# summary(mod.DFP2.alt)$dev.expl
+# summary(mod.DFP3.alt)$dev.expl
 
 
-summary(mod.DFP1.alt)$dev.expl
-summary(mod.DFP2.alt)$dev.expl
-summary(mod.DFP3.alt)$dev.expl
+
+#------------------------#
+# benefit of deviation ####
+
+devtest <- t1 %>% filter(iyd_1 < 15000 & km_mark_1 <= 240) %>% mutate(km = round(km_mark_1, 0)) %>% group_by(id_yr, km) %>% summarise(iyd = mean(iyd_1), mismatch = mean(absDFP) , mis.sign = mean(DFP), AID = unique(AID), Year = unique(Year))
+
+devtest <- devtest %>% ungroup() %>% mutate(fidc = cut(iyd, breaks = quantile(iyd, c(.25,.5,.75,1.00)),include.lowest = TRUE, labels = FALSE))
+
+devtest
+
+mod.dev <- mgcv::gamm(mismatch ~ s(km, by = factor(fidc), bs = "cs", k = 5), method = "GCV", data = devtest, family = quasipoisson, random = list(id_yr=~1, Year = ~1, AID=~1))
+mod.sign.dev <- mgcv::gamm(mis.sign ~ s(km, by = factor(fidc), bs = "cs", k = 5), method = "REML",data = devtest, random = list(id_yr=~1, Year = ~1, AID=~1))
+
+summary(mod.sign.dev$gam)
+
+plot.gam(mod.dev$gam)
+
+newdata <- data.frame(expand.grid(km = seq(1,240,by = 1), fidc = c(1,2,3), Year = 2017, id_yr = "255_2018", AID = "255"))
+
+preddev <- gammit::predict_gamm(mod.dev$gam , newdata = newdata, se = T)
+preddevsign <- gammit::predict_gamm(mod.sign.dev$gam , newdata = newdata, se = T)
 
 
 
+
+
+ggplot(cbind(newdata, preddev)) + geom_ribbon(aes(x = km, ymin = exp(prediction - se), ymax = exp(prediction + se), group = factor(fidc)), fill = "#6A5ACD", alpha = .15) + geom_line(aes(x = km, y = exp(prediction), group = factor(fidc), linetype = factor(fidc)), linewidth = 1.4, color = "#4B0082") + scale_linetype_manual(values = c("solid", "dashed", "dotted"), labels = c("High", "Moderate", "Low")) + labs(x = "Route Distance (km)", y = "|Days from Peak Green-up|", linetype = "Fidelity") + theme_classic()
+
+ggplot(cbind(newdata, preddevsign)) + geom_ribbon(aes(x = km, ymin = (prediction - se), ymax = (prediction + se), group = factor(fidc)), fill = "#6A5ACD", alpha = .15) + geom_line(aes(x = km, y = (prediction), group = factor(fidc), linetype = factor(fidc)), linewidth = 1.4, color = "#4B0082") + scale_linetype_manual(values = c("solid", "dashed", "dotted"), labels = c("High", "Moderate", "Low")) + labs(x = "Route Distance (km)", y = "Days from Peak Green-up", linetype = "Fidelity") + theme_classic() + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 17,color = "grey18"),axis.text.y = element_text(size = 17,color = "grey18"),legend.text = element_text(size = 16,color = "grey18"), title = element_text(size = 20,color = "grey18")) + scale_y_continuous(expand = c(0,0), limits = c(0,45.2), breaks = seq(0,45,5)) + scale_x_continuous(expand = c(0,0), limits = c(0,242), breaks = seq(0,240,40))
+
+ggsave(filename = "Figures/OptimalDeviations_20230509.jpg", width = 30, height = 24, units = "cm", dpi = 600)
+
+
+mod.alt <- mgcv::gam(round(mismatch,0) ~ s(km, by = factor(fidc), bs = "cs", k = 5) + s(factor(devtest$id_yr), bs= "re") + s(factor(devtest$AID), bs = "re") + s(factor(devtest$Year), bs = "re"), method= "REML", data = devtest, family = quasipoisson())
+summary(mod.alt)$dev.expl #random = list(id_yr=~1, Year = ~1, AID=~1)
+
+mod.alts <- mgcv::gam(mis.sign ~ s(km, by = factor(fidc), bs = "cs", k = 5) + s(factor(devtest$id_yr), bs= "re") + s(factor(devtest$AID), bs = "re") + s(factor(devtest$Year), bs = "re"), method= "REML", data = devtest)
+summary(mod.alts)$dev.expl
 
 #-------------------------------#
 # varied by greenscape ####
 
+trans.arcsine <- function(x){
+  asin(sign(x) * sqrt(abs(x)))
+}
+
+
 #chose two year since has most deviance explained
 green <- RDH_14t22_greenscapes %>% rename(id_yr = AY_ID, AID = AnimalID)
-t1g <- t1_sum %>% left_join(green, by = c("id_yr")) %>% ungroup() %>% mutate(iyds = scale(iyd))
+head(green)
+m1 <- glmer(IRG_120 ~ greenUpDur + (1+greenUpDur|Year), data = green)
+m2 <- glmer(log(DFP_120) ~ greenUpDur + (1+greenUpDur|Year), data = green)
+m3 <- glmer(log(DFP_120) ~ trans.arcsine(svSlope) + (1+svSlope|Year), data = green, na.action = "na.omit")
+m4 <- glmer(log(DFP_120) ~ springScale + (1+springScale|Year), data = green)
+
+
+summary(m1)
+summary(m2)
+summary(m3)
+summary(m4)
+
+newdatagud <- data.frame(expand.grid(Year = seq(2014, 2022, by = 1), greenUpDur = seq(min(green$greenUpDur),max(green$greenUpDur),length = 100)))
+newdatasps <- data.frame(expand.grid(Year = seq(2014, 2022, by = 1), springScale = seq(min(RDH_14t22_greenscapes$springScale),max(RDH_14t22_greenscapes$springScale),length = 100)))
+newdatasvs <- data.frame(expand.grid(Year = seq(2014, 2022, by = 1), svSlope = seq(min(RDH_14t22_greenscapes$svSlope),max(RDH_14t22_greenscapes$svSlope),length = 100)))
+newdatasvs$svSlope <- trans.arcsine(newdatasvs$svSlope)
+                                 
+
+newdatagud$pred <-  predict(m1, newdatagud, re.form = ~(1+greenUpDur|Year))
+newdatagud$predd <-  predict(m2, newdatagud, re.form = ~(1+greenUpDur|Year))
+newdatasps$pred <- predict(m4, newdatasps, re.form = ~(1+springScale|Year))
+newdatasvs$pred <- predict(m3, newdatasvs, re.form = ~(1+svSlope|Year))
+
+p1 <- ggplot(green) + geom_point(aes(y = IRG_120, x = greenUpDur, group = factor(Year), color = factor(Year))) + geom_line(aes(x = greenUpDur, y = pred, group = factor(Year), color = factor(Year)), linewidth = 1.2, newdatagud) + geom_line(aes(x = greenUpDur, y = mean), color = "black", linewidth = 1.2, newdatagud %>% group_by(greenUpDur) %>% summarise(mean = mean(pred))) + theme_classic() + theme(legend.position = "none");p1
+
+p2 <- ggplot(green) + geom_point(aes(y = log(DFP_120), x = greenUpDur, group = factor(Year), color = factor(Year))) + geom_line(aes(x = greenUpDur, y = predd, group = factor(Year), color = factor(Year)), linewidth = 1.2, newdatagud) + geom_line(aes(x = greenUpDur, y = mean), color = "black", linewidth = 1.2, newdatagud %>% group_by(greenUpDur) %>% summarise(mean = mean(predd))) + theme_classic() + theme(legend.position = "none")+ scale_y_continuous(limits = c(2.875, 3.925), breaks = seq(2.9,3.9,.1)) + scale_x_continuous(limits = c(50,150), breaks = seq(50,150,25)); p2
+
+p3 <- ggplot(green) + geom_point(aes(y = log(DFP_120), x = trans.arcsine(svSlope), group = factor(Year), color = factor(Year))) + geom_line(aes(x = trans.arcsine(svSlope), y = pred, group = factor(Year), color = factor(Year)), linewidth = 1.2, newdatasvs) + geom_line(aes(x = trans.arcsine(svSlope), y = mean), color = "black", linewidth = 1.2, data =  newdatasvs %>% group_by(svSlope) %>% summarise(mean = mean(pred))) + theme_classic() + theme(legend.position = "none") + scale_y_continuous(limits = c(2.875, 3.925), breaks = seq(2.9,3.9,.1))  + scale_x_continuous(limits = c(-.5,1.3), breaks = seq(-.5,1.3,.3)); p3
+
+p4 <- ggplot(green) + geom_point(aes(y = log(DFP_120), x = springScale, group = factor(Year), color = factor(Year))) + geom_line(aes(x = springScale, y = pred, group = factor(Year), color = factor(Year)), linewidth = 1.2, newdatasps) + geom_line(aes(x = springScale, y = mean), color = "black", linewidth = 1.2, newdatasps %>% group_by(springScale) %>% summarise(mean = mean(pred))) + theme_classic() + theme(legend.position = "none") + scale_y_continuous(limits = c(2.875, 3.925), breaks = seq(2.9,3.9,.1))  + scale_x_continuous(limits = c(9.95, 32.05), breaks = seq(10,32,1)); p4
+
+p1 + p2 + p4 + p3
+
+
+
+
+#how does fidelity mediate
+green <- RDH_14t22_greenscapes %>% rename(id_yr = AY_ID, AID = AnimalID)
+head(green)
+
+t1_mig <- t1_sum %>% group_by(id_yr) %>% summarise(fid = mean(na.omit(iyd)), TimeOnStop = sum(TimeStopped), TimeStopAvg = mean(TimeStopped)) %>% drop_na(fid)
+t2_mig <- t2_sum %>% group_by(id_yr) %>% summarise(fid = mean(na.omit(iyd)), TimeOnStop = sum(TimeStopped), TimeStopAvg = mean(TimeStopped)) %>% drop_na(fid)
+t3_mig <- t3_sum %>% group_by(id_yr) %>% summarise(fid = mean(na.omit(iyd)), TimeOnStop = sum(TimeStopped), TimeStopAvg = mean(TimeStopped)) %>% drop_na(fid)
+
+t1g <- t1_mig %>% left_join(green, by = c("id_yr")) %>% ungroup() %>% mutate(iyds = scale(fid))
+t2g <- t2_mig %>% left_join(green, by = c("id_yr")) %>% ungroup() %>% mutate(iyds = scale(fid))
+t3g <- t3_mig %>% left_join(green, by = c("id_yr")) %>% ungroup() %>% mutate(iyds = scale(fid))
 
 #t2g <- t2g %>% mutate(GUDs = scale(greenUpDur), SPSs = scale(springScale), SVSs = scale(svSlope), GUDc = ifelse(GUDs <= 0, "short", "long"), SPSc = ifelse(SPSs <= 0,  "fast", "slow" ), SVSc = ifelse(SVSs <= 0,"rand", "ord")) 
 
-t1g <- t1g %>% drop_na(iyd) %>% mutate(iydc = cut(iyd, breaks = quantile(iyd, seq(0, 1, by = 0.5)),include.lowest = TRUE, labels = FALSE)) %>% rename(Year = Year.x, AID = AID.x)
+t1gc <- t1g %>% st_drop_geometry() %>% mutate(fidc = cut(fid, breaks = quantile(fid, c(0,.5,1.00)),include.lowest = TRUE, labels = FALSE)) %>% select(-c(SVmax, midpoint))
+t2gc <- t2g %>% st_drop_geometry() %>% mutate(fidc = cut(fid, breaks = quantile(fid, c(0,.5,1.00)),include.lowest = TRUE, labels = FALSE)) %>% select(-c(SVmax, midpoint))
+t3gc <- t3g %>% st_drop_geometry() %>% mutate(fidc = cut(fid, breaks = quantile(fid, c(0,.5,1.00)),include.lowest = TRUE, labels = FALSE)) %>% select(-c(SVmax, midpoint))
 
 #
-names(t2g)
+
 
 # mod.absDFP.GUDc <- mgcv::gamm(round(absDFP,0) ~ s(iyd, bs = "cs", k = 5, by = factor(GUDc)) + km + TimeStopped, data = t2g %>% filter(iyd < 30000), method = "REML", random = list(id_yr=~1, Year = ~1, AID=~1), family = poisson(link = "log"))
 # mod.absDFP.SVSc <- mgcv::gamm(round(absDFP,0) ~ s(iyd, bs = "cs", k = 5, by = factor(SVSc))  + km + TimeStopped, data = t2g%>% filter(iyd < 30000), method = "REML", random = list(id_yr=~1, Year = ~1, AID=~1), family = poisson(link = "log"))
 # mod.absDFP.SPSc <- mgcv::gamm(round(absDFP,0) ~ s(iyd, bs = "cs", k = 5, by = factor(SPSc))  + km + TimeStopped, data = t2g%>% filter(iyd < 30000), method = "REML", random = list(id_yr=~1, Year = ~1, AID=~1), family = poisson(link = "log"))
 
+t1gc$Year <- as.factor(t1gc$Year)
 
+mod.IRG.GUD <- mgcv::gam(IRG_120 ~ s(greenUpDur, bs = "cs", k = 5, by = factor(fidc)) + greenUpDur, data = t1gc, method = "REML", random = list(Year =  ~1+greenUpDur))
+mod.DFP.GUD <- mgcv::gamm(log(DFP_120) ~ s(greenUpDur, bs = "cs", k = 5, by = factor(fidc)) + greenUpDur, data = t1gc, method = "REML", random = list(Year = ~1+greenUpDur))
+mod.DFP.SPS <- mgcv::gamm(log(DFP_120) ~ s(springScale, bs = "cs", k = 5, by = factor(fidc)) + springScale, data = t1gc , method = "REML", random = list(Year = ~1+springScale))
+mod.DFP.SVS <- mgcv::gamm(log(DFP_120) ~ s(trans.arcsine(svSlope), bs = "cs", k = 5, by = factor(fidc)) + trans.arcsine(svSlope), data = t1gc, method = "REML", random = list(Year = ~1+trans.arcsine(svSlope)))
 
-mod.absDFP.GUD <- mgcv::gamm(round(absDFP,0) ~ s(greenUpDur, bs = "cs", k = 5, by = factor(iydc)), data = t1g %>% filter(iyd < 30000), method = "REML", random = list(id_yr=~1, Year = ~1, AID=~1), family = poisson(link = "log"))
-mod.absDFP.SPS <- mgcv::gamm(round(absDFP,0) ~ s(springScale, bs = "cs", k = 5, by = factor(iydc)), data = t1g%>% filter(iyd < 30000), method = "REML", random = list(id_yr=~1, Year = ~1, AID=~1), family = poisson(link = "log"))
-mod.absDFP.SVS <- mgcv::gamm(round(absDFP,0) ~ s(svSlope, bs = "cs", k = 5, by = factor(iydc)), data = t1g %>% filter(iyd < 30000), method = "REML", random = list(id_yr=~1, Year = ~1, AID=~1), family = poisson(link = "log"))
+summary(mod.IRG.GUD$gam)
+summary(mod.DFP.GUD$gam)
+summary(mod.DFP.SPS$gam)
+summary(mod.DFP.SVS$gam)
 
+summary(mod.IRG.GUD$lme)
+summary(mod.DFP.GUD$lme)
+summary(mod.DFP.SPS$lme)
+summary(mod.DFP.SVS$lme)
 
+years <- data.frame(years = unique(t1g$Year))
+years <- na.omit(years)
 
-newdata.gud <- data.frame(expand.grid(km = mean(t2g$km), iydc = factor(c(1,2)), TimeStopped = mean(t2g$TimeStopped), AID = "108", Year = 2017, id_yr = "108_2017", greenUpDur = seq(min(na.omit(t2g$greenUpDur)), max(na.omit(t2g$greenUpDur)), length = 50)))
-newdata.svs <- data.frame(expand.grid(km = mean(t2g$km), iydc = factor(c(1,2)), TimeStopped = mean(t2g$TimeStopped), AID = "108", Year = 2017, id_yr = "108_2017", svSlope = seq(min(na.omit(t2g$svSlope)), max(na.omit(t2g$svSlope)), length = 50)))
-newdata.sps = data.frame(expand.grid(km = mean(t2g$km), iydc = factor(c(1,2)), TimeStopped = mean(t2g$TimeStopped), AID = "108", Year = 2017, id_yr = "108_2017", springScale = seq(min(na.omit(t2g$springScale)), max(na.omit(t2g$springScale)), length = 50)))
+newdata.gud <- data.frame(expand.grid(fidc = factor(c(1,2)), AID = "108", Year = years$years, id_yr = "108_2017", greenUpDur = seq(min(na.omit(t1g$greenUpDur)), max(na.omit(t1g$greenUpDur)), length = 50)))
+newdata.svs <- data.frame(expand.grid(fidc = factor(c(1,2)), AID = "108", Year = years$years, id_yr = "108_2017", svSlope = seq(min(na.omit(t1g$svSlope)), max(na.omit(t1g$svSlope)), length = 50)))
+newdata.sps = data.frame(expand.grid(fidc = factor(c(1,2)), AID = "108", Year = years$years, id_yr = "108_2017", springScale = seq(min(na.omit(t1g$springScale)), max(na.omit(t1g$springScale)), length = 50)))
 
+extract_ranef(mod.IRG.GUD$gam)
 
-
-predGUD <- gammit::predict_gamm(mod.absDFP.GUD$gam , newdata = newdata.gud, se = T)
-predSVS <- gammit::predict_gamm(mod.absDFP.SVS$gam , newdata = newdata.svs, se = T)
-predSPS <- gammit::predict_gamm(mod.absDFP.SPS$gam , newdata = newdata.sps, se = T)
+predIRGGUD <- gammit::predict_gamm(mod.IRG.GUD$gam , newdata = newdata.gud, se = T); predIRGGUD
+predGUD <- gammit::predict_gamm(mod.DFP.GUD$gam , newdata = newdata.gud, random = T,se = T)
+predSVS <- gammit::predict_gamm(mod.DFP.SVS$gam , newdata = newdata.svs,  se = T)
+predSPS <- gammit::predict_gamm(mod.DFP.SPS$gam , newdata = newdata.sps, random = T,se = T)
 
 newdatapredGUD <- cbind(newdata.gud, predGUD)
 newdatapredSVS <- cbind(newdata.svs, predSVS)
 newdatapredSPS <- cbind(newdata.sps, predSPS)
 
+irggud <- ggplot(cbind(newdata.gud, predIRGGUD)) + geom_point(aes(x = greenUpDur, y = (IRG_120)), size = 3.5, alpha = .15, shape = 21, color = "black", fill = "grey30", data = t1g) + geom_line(aes(x = greenUpDur, y = (prediction), color = factor(fidc)), size = 1.8) + labs(y = "ln(|Days from Peak Green-up|)", title = "", x = "Green-up duration (d)", color = "Fidelity Quartile", fill = "Fidelity Quartile") + theme_classic()  + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 17,color = "grey18"),axis.text.y = element_text(size = 17,color = "grey18"), legend.position = "none",legend.text = element_text(size = 16,color = "grey18"), title = element_text(size = 20,color = "grey18")) + scale_fill_manual(values = c("#2F4F4F", "#87CEFA"), label = c("Above Average", "Below Average")) + scale_color_manual(values = c("#2F4F4F", "#87CEFA"), label = c("Above Average", "Below Average")) + scale_y_continuous(limits = c(.5,.9), breaks = seq(.5,.9,.1)) + scale_x_continuous(limits = c(50,150), breaks = seq(50,150,25)); irggud
 
+gud <- ggplot(cbind(newdata.gud, predGUD)) + geom_point(aes(x = greenUpDur, y = log(DFP_120)), size = 3.5, alpha = .15, shape = 21, color = "black", fill = "grey30", data = t1g) + geom_line(aes(x = greenUpDur, y = (prediction), color = factor(fidc)), size = 1.8) + labs(y = "ln(|Days from Peak Green-up|)", title = "", x = "Green-up duration (d)", color = "Fidelity Quartile", fill = "Fidelity Quartile") + theme_classic()  + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 17,color = "grey18"),axis.text.y = element_text(size = 17,color = "grey18"), legend.position = "none",legend.text = element_text(size = 16,color = "grey18"), title = element_text(size = 20,color = "grey18")) + scale_fill_manual(values = c("#2F4F4F", "#87CEFA"), label = c("Above Average", "Below Average")) + scale_color_manual(values = c("#2F4F4F", "#87CEFA"), label = c("Above Average", "Below Average")) + scale_y_continuous(limits = c(2.875, 3.925), breaks = seq(2.9,3.9,.1)) + scale_x_continuous(limits = c(50,150), breaks = seq(50,150,25)); gud
 
+svs <- ggplot(cbind(newdata.svs, predSVS)) + geom_point(aes(x = trans.arcsine(svSlope), y = log(DFP_120)), fill = "grey30", size = 3.5, alpha = .15, shape = 21, color = "black", data = t1g) + geom_line(aes(x = trans.arcsine(svSlope), y = (prediction), color = factor(fidc)), size = 1.8) + labs(y = "", title = "", x = "arcsin(Green-up order)", color = "Fidelity Quartile", fill = "Fidelity Quartile") + theme_classic()  + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 17,color = "grey18"),axis.text.y = element_blank(), legend.position = "none",legend.text = element_text(size = 16,color = "grey18"), title = element_text(size = 20,color = "grey18")) + scale_fill_manual(values = c("#2F4F4F","#0000FF", "#87CEFA"), label = c("High", "Mod", "Low")) + scale_color_manual(values = c("#2F4F4F", "#0000FF", "#87CEFA"), label = c("High", "Mod", "Low")) + scale_y_continuous(limits = c(2.875, 3.925), breaks = seq(2.9,3.9,.1))  + scale_x_continuous(limits = c(.2,.71), breaks = seq(.2,.7,.1)); svs
 
-gud <- ggplot(newdatapredGUD) + geom_point(aes(x = greenUpDur, y = log(absDFP)), size = 3.5, alpha = .15, shape = 21, color = "black", fill = "grey30", data = t1g) + geom_line(aes(x = greenUpDur, y = (prediction), color = factor(iydc)), size = 1.8) + labs(y = "ln(|Days from Peak Green-up|)", title = "", x = "Green-up duration (d)", color = "Fidelity Quartile", fill = "Fidelity Quartile") + theme_classic()  + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 17,color = "grey18"),axis.text.y = element_text(size = 17,color = "grey18"), legend.position = "none",legend.text = element_text(size = 16,color = "grey18"), title = element_text(size = 20,color = "grey18")) + scale_fill_manual(values = c( "#0000FF", "#87CEFA"), label = c("Above Average", "Below Average")) + scale_color_manual(values = c( "#0000FF", "#87CEFA"), label = c("Above Average", "Below Average")) + scale_y_continuous(limits = c(2.875, 3.925), breaks = seq(2.9,3.9,.1)) + scale_x_continuous(limits = c(50,150), breaks = seq(50,150,25)); gud
-
-svs <- ggplot(newdatapredSVS) + geom_point(aes(x = asin(svSlope^.5), y = log(absDFP)), fill = "grey30", size = 3.5, alpha = .15, shape = 21, color = "black", data = t1g) + geom_line(aes(x = asin(svSlope^.5), y = (prediction), color = factor(iydc)), size = 1.8) + labs(y = "", title = "", x = "arcsin(Green-up order)", color = "Fidelity Quartile", fill = "Fidelity Quartile") + theme_classic()  + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 17,color = "grey18"),axis.text.y = element_blank(), legend.position = "none",legend.text = element_text(size = 16,color = "grey18"), title = element_text(size = 20,color = "grey18")) + scale_fill_manual(values = c( "#0000FF", "#87CEFA"), label = c("Above Average", "Below Average")) + scale_color_manual(values = c( "#0000FF", "#87CEFA"), label = c("Above Average", "Below Average")) + scale_y_continuous(limits = c(2.875, 3.925), breaks = seq(2.9,3.9,.1))  + scale_x_continuous(limits = c(.2,.71), breaks = seq(.2,.7,.1)); svs
-
-sps <- ggplot(newdatapredSPS) + geom_point(aes(x = springScale, y = log(absDFP)), fill = "grey30", size = 3.5, alpha = .15, shape = 21, color = "black", data = t1g) + geom_line(aes(x = springScale, y = (prediction), color = factor(iydc)), size = 1.8) + labs(y = "", x =  bquote('Spring scale'~('green-up rate' ^-1)), color = bquote('Morrison Fidelity'~('IYD')), fill = bquote('Morrison Fidelity'~('IYD'))) + theme_classic()  + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 17,color = "grey18"),axis.text.y = element_blank(),legend.text = element_text(size = 16,color = "grey18"), title = element_text(size = 20,color = "grey18")) + scale_fill_manual(values = c( "#0000FF", "#87CEFA"), label = c("Above Average", "Below Average")) + scale_color_manual(values = c( "#0000FF", "#87CEFA"), label = c("Above Average", "Below Average")) + scale_y_continuous(limits = c(2.875, 3.925), breaks = seq(2.9,3.9,.1))  + scale_x_continuous(limits = c(14.95, 22.05), breaks = seq(15,22,1)); sps
-
-
-
-
-# sps <- ggplot(newdatapredSPSc) + geom_ribbon(aes(x = iyd/1000, ymax = exp(prediction) + exp(se), ymin = exp(prediction) - exp(se), group = factor(SPSc), fill = factor(SPSc)), alpha = .33) + geom_line(aes(x = iyd/1000, y = exp(prediction), fill = factor(SPSc)), size = .8) + labs(y = "", title = bquote('Green-up'~rate^-1), x = bquote('Inter-year Distance (km)'~( Fidelity ^-1)), fill = "") + theme_classic()  + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 13,color = "grey18"),axis.text.y = element_text(size = 13,color = "grey18"), title = element_text(size = 20,color = "grey18"),legend.text = element_text(size = 16,color = "grey18"))+ scale_fill_manual(values = c("#00994C", "#994C00"), label = c("fast", "slow"))
-# 
-# svs <- ggplot(newdatapredSVSc) + geom_ribbon(aes(x = iyd/1000, ymax = exp(prediction) + exp(se), ymin = exp(prediction) - exp(se), group = factor(SVSc), fill = factor(SVSc)), alpha = .33) + geom_line(aes(x = iyd/1000, y = exp(prediction), fill = factor(SVSc)), size = .8) + labs(y = "", x = "", fill = "", title = "Green-up Order") + theme_classic()  + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 13,color = "grey18"),axis.text.y = element_text(size = 13,color = "grey18"),legend.text = element_text(size = 16,color = "grey18"), title = element_text(size = 20,color = "grey18")) + scale_fill_manual(values = c("#994C00", "#00994C"), label = c("random", "ordered"))
+sps <- ggplot(cbind(newdata.sps, predSPS)) + geom_point(aes(x = springScale, y = log(DFP_120)), fill = "grey30", size = 3.5, alpha = .15, shape = 21, color = "black", data = t1g) + geom_line(aes(x = springScale, y = (prediction), color = factor(fidc)), size = 1.8) + labs(y = "", x =  bquote('Spring scale'~('green-up rate' ^-1)), color = bquote('Morrison Fidelity'~('IYD')), fill = bquote('Morrison Fidelity'~('IYD'))) + theme_classic()  + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 17,color = "grey18"),axis.text.y = element_blank(),legend.text = element_text(size = 16,color = "grey18"), title = element_text(size = 20,color = "grey18")) + scale_fill_manual(values = c("#2F4F4F", "#87CEFA"), label = c("Above Average", "Below Average")) + scale_color_manual(values = c("#2F4F4F", "#87CEFA"), label = c("Above Average", "Below Average")) + scale_y_continuous(limits = c(2.875, 3.925), breaks = seq(2.9,3.9,.1))  + scale_x_continuous(limits = c(14.95, 22.05), breaks = seq(15,22,1)); sps
 
 
 gud + svs + sps
 
 ggsave(filename = "Figures/GreenscapeMetricsByAvg_20230506.jpg", width = 72, height = 24, units = "cm", dpi = 600)
 
+
+
+
+# recreate the yearly plots, but with gam
+# 
+# mod.IRG.GUDY <- mgcv::gam(IRG_120 ~ greenUpDur + s(greenUpDur, by = Year, bs = "re"), data = green, method = "REML")
+# mod.DFP.GUDY <- mgcv::gam(log(DFP_120) ~ greenUpDur + s(greenUpDur, Year, bs = "re"), data = green, method = "REML")
+# mod.DFP.SPSY <- mgcv::gam(log(DFP_120) ~ springScale + s(springScale, Year, bs = "re"), data = green, method = "REML")
+# mod.DFP.SVSY <- mgcv::gam(log(DFP_120) ~ trans.arcsine(green$svSlope) + s(trans.arcsine(green$svSlope), Year, bs = "re"), data = green, method = "REML")
+# 
+# 
+# years <- data.frame(years = unique(green$Year))
+# years <- na.omit(years)
+# 
+# newdata.gud <- data.frame(expand.grid(AID = "108", Year = years$years, id_yr = "108_2017", greenUpDur = seq(min(na.omit(green$greenUpDur)), max(na.omit(green$greenUpDur)), length = 50)))
+# newdata.svs <- data.frame(expand.grid(AID = "108", Year = years$years, id_yr = "108_2017", svSlope = seq(min(na.omit(green$svSlope)), max(na.omit(green$svSlope)), length = 50)))
+# newdata.sps = data.frame(expand.grid(AID = "108", Year = years$years, id_yr = "108_2017", springScale = seq(min(na.omit(green$springScale)), max(na.omit(green$springScale)), length = 50)))
+# 
+# predIRGGUD <- gammit::predict_gamm(mod.IRG.gudY ,  newdata = newdata.gud, random = T, se = T); predIRGGUD
+# predGUD <- gammit::predict_gamm(model = mod.DFP.GUDY , newdata = newdata.gud, random = T,se = T)
+# predSVS <- gammit::predict_gamm(mod.DFP.SVSY , newdata = newdata.svs, random = T,  se = T)
+# predSPS <- gammit::predict_gamm(mod.DFP.SPSY , newdata = newdata.sps, random = T, random = T,se = T)
+# 
+# newdatapredGUD <- cbind(newdata.gud, predGUD)
+# newdatapredSVS <- cbind(newdata.svs, predSVS)
+# newdatapredSPS <- cbind(newdata.sps, predSPS)
+# 
+# ggplot(cbind(newdata.gud, predIRGGUD)) + geom_point(aes(x = greenUpDur, y = (IRG_120)), size = 3.5, alpha = .15, shape = 21, color = "black", fill = "grey30", data = green) + geom_line(aes(x = greenUpDur, y = (prediction), group = factor(Year), color = factor(Year)), position = position_jitter(), size = 1.8) 
+# 
+# ggplot(cbind(newdata.gud, predGUD)) + geom_point(aes(x = greenUpDur, y = log(DFP_120)), size = 3.5, alpha = .15, shape = 21, color = "black", fill = "grey30", data = green) + geom_line(aes(x = greenUpDur, y = (prediction), group = factor(Year), color = factor(Year)), position = position_jitter(), size = 1.8) 
+# 
+# # 
+# # + labs(y = "ln(|Days from Peak Green-up|)", title = "", x = "Green-up duration (d)", color = "Fidelity Quartile", fill = "Fidelity Quartile") + theme_classic()  + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 17,color = "grey18"),axis.text.y = element_text(size = 17,color = "grey18"), legend.position = "none",legend.text = element_text(size = 16,color = "grey18"), title = element_text(size = 20,color = "grey18")) + scale_fill_manual(values = c("#2F4F4F", "#87CEFA"), label = c("Above Average", "Below Average")) + scale_color_manual(values = c("#2F4F4F", "#87CEFA"), label = c("Above Average", "Below Average")) + scale_y_continuous(limits = c(.5,.9), breaks = seq(.5,.9,.1)) + scale_x_continuous(limits = c(50,150), breaks = seq(50,150,25)); irggud
+# # 
+# # gud <- ggplot(cbind(newdata.gud, predGUD)) + geom_point(aes(x = greenUpDur, y = log(DFP_120)), size = 3.5, alpha = .15, shape = 21, color = "black", fill = "grey30", data = t1g) + geom_line(aes(x = greenUpDur, y = (prediction), color = factor(fidc)), size = 1.8) + labs(y = "ln(|Days from Peak Green-up|)", title = "", x = "Green-up duration (d)", color = "Fidelity Quartile", fill = "Fidelity Quartile") + theme_classic()  + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 17,color = "grey18"),axis.text.y = element_text(size = 17,color = "grey18"), legend.position = "none",legend.text = element_text(size = 16,color = "grey18"), title = element_text(size = 20,color = "grey18")) + scale_fill_manual(values = c("#2F4F4F", "#87CEFA"), label = c("Above Average", "Below Average")) + scale_color_manual(values = c("#2F4F4F", "#87CEFA"), label = c("Above Average", "Below Average")) + scale_y_continuous(limits = c(2.875, 3.925), breaks = seq(2.9,3.9,.1)) + scale_x_continuous(limits = c(50,150), breaks = seq(50,150,25)); gud
+# 
+# svs <- ggplot(cbind(newdata.svs, predSVS)) + geom_point(aes(x = trans.arcsine(svSlope), y = log(DFP_120)), fill = "grey30", size = 3.5, alpha = .15, shape = 21, color = "black", data = t1g) + geom_line(aes(x = trans.arcsine(svSlope), y = (prediction), color = factor(fidc)), size = 1.8) + labs(y = "", title = "", x = "arcsin(Green-up order)", color = "Fidelity Quartile", fill = "Fidelity Quartile") + theme_classic()  + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 17,color = "grey18"),axis.text.y = element_blank(), legend.position = "none",legend.text = element_text(size = 16,color = "grey18"), title = element_text(size = 20,color = "grey18")) + scale_fill_manual(values = c("#2F4F4F","#0000FF", "#87CEFA"), label = c("High", "Mod", "Low")) + scale_color_manual(values = c("#2F4F4F", "#0000FF", "#87CEFA"), label = c("High", "Mod", "Low")) + scale_y_continuous(limits = c(2.875, 3.925), breaks = seq(2.9,3.9,.1))  + scale_x_continuous(limits = c(.2,.71), breaks = seq(.2,.7,.1)); svs
+# 
+# sps <- ggplot(cbind(newdata.sps, predSPS)) + geom_point(aes(x = springScale, y = log(DFP_120)), fill = "grey30", size = 3.5, alpha = .15, shape = 21, color = "black", data = t1g) + geom_line(aes(x = springScale, y = (prediction), color = factor(fidc)), size = 1.8) + labs(y = "", x =  bquote('Spring scale'~('green-up rate' ^-1)), color = bquote('Morrison Fidelity'~('IYD')), fill = bquote('Morrison Fidelity'~('IYD'))) + theme_classic()  + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 17,color = "grey18"),axis.text.y = element_blank(),legend.text = element_text(size = 16,color = "grey18"), title = element_text(size = 20,color = "grey18")) + scale_fill_manual(values = c("#2F4F4F", "#87CEFA"), label = c("Above Average", "Below Average")) + scale_color_manual(values = c("#2F4F4F", "#87CEFA"), label = c("Above Average", "Below Average")) + scale_y_continuous(limits = c(2.875, 3.925), breaks = seq(2.9,3.9,.1))  + scale_x_continuous(limits = c(14.95, 22.05), breaks = seq(15,22,1)); sps
 
 
 #--------------------------------#
@@ -547,8 +718,40 @@ predict(mod.IYDbySVS, newdata, type = "response")
 
 
 
+#-----------------------------------#
+# how does IYD change over space ####
 
 
+t12 <- t1_sum %>% left_join(t2_sum %>% st_drop_geometry() %>% rename(iyd2 = iyd) %>% select(c(stop.n.c, iyd2)), by = c("stop.n.c","id_yr"))
+
+t123 <- t12 %>% left_join(t3_sum %>% st_drop_geometry() %>% rename(iyd3 = iyd) %>% select(stop.n.c, iyd3), by = c("stop.n.c","id_yr"))
+
+t123 <- t123 %>% st_drop_geometry() 
+
+
+t123$meanfid <- rowMeans(t123[,c("iyd", "iyd2", "iyd3")], na.rm = TRUE)
+
+t123 <- t123 %>% mutate(fY = factor(Year), fA = factor(AID), fI = factor(id_yr))
+
+
+mod.km_fid <- mgcv::gam(round(meanfid,0) ~ s(km, bs = "cs", k = 5) + s(km, fY, bs = "re")  + s(fA, bs = "re")  + s(fI, bs = "re"), data = t123 %>% filter(km < 240), family = poisson(link = "log"))
+
+summary(mod.km_fid)
+
+plot.gam(mod.km_fid)
+
+newdata <- data.frame(km = seq(0,240,1), fY = unique(t123$fY)[1], fA = unique(t123$fA)[1], fI = unique(t123$fI)[1])
+
+predict <- predict_gamm(mod.km_fid, newdata, se = T); predict
+
+intercept <- predict_gamm(mod.km_fid, newdata = data.frame(expand.grid(km = seq(0,240,1), fY = unique(t123$fY)[1], fA = unique(t123$fA), fI = unique(t123$fI)[1])), re_form = "s(fA)", se = F)
+
+ggplot(cbind(newdata, predict)) + geom_ribbon(aes(x = km, ymin = exp(prediction-se), ymax = exp(prediction+se)), fill = "grey45", alpha = .2)+ geom_line(aes(x = km, y = exp(prediction)), color = "#008B8B", linewidth = 1.3) + theme_classic() + labs(x = "Position en-route (km)", y = "Fidelity to Previous Stops (1-3 yrs)") + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 13,color = "grey18"),axis.text.y = element_text(size = 13,color = "grey18"),legend.text = element_text(size = 16,color = "grey18")) + geom_text(label = 'edf=3.997, p<0.001', x = 200, y = 11500, size = 10, family = "serif") + scale_x_continuous(expand = c(0,0), limits = c(0,242), breaks = seq(0,240,40)) + scale_y_continuous(expand = c(0,0), limits = c(0,12500), breaks = seq(0,12500,2500))
+
+ggsave(filename = "Figures/IYDAlongRoute_20230509.jpg", width = 34, height = 24, units = "cm", dpi = 600)
+
+
+ggplot(cbind(newdata, intercept)) + geom_point(aes(x = 1, y = prediction, group = fA, color = fA))
 
 #------------------------#
 # adaptability of fidelity ####
@@ -729,59 +932,12 @@ ggsave("Figures/MismatchDistance_rough.png")
 
 
 
-mod.DriveGlobal.Hi <- gam::gam(iyd_1 ~ km_mark_1 + absDFP + IntegratedNDVI + (1|id_yr) + (1|), family = poisson(link = "log"), data = testhi, na.action = "na.fail")
-
-
-
-
-
-
-
+# mod.DriveGlobal.Hi <- gam::gam(iyd_1 ~ km_mark_1 + absDFP + IntegratedNDVI + (1|id_yr) + (1|), family = poisson(link = "log"), data = testhi, na.action = "na.fail")
 
 
 
 
 #---------------------------------#
 #compare used and alternate####
-
-# 
-#combine these data
-onstop_yr_fin$flag <- 1
-# 
-# AlternateStops_Bischof <- AlternateStops_Bischof %>% st_as_sf(coords = c("x","y"), crs = st_crs(onstop_yr_fin)$input)
-# 
-# AlternateStops_Bischof <- AlternateStops_Bischof %>% group_by(stop.n.c) %>% mutate(km = round(mean(km_mark, 0))) %>% ungroup() %>% dplyr::select(names(onstop_yr_fin %>% dplyr::select(-IncompMig)))
-# 
-# stop_data <- rbind(onstop_yr_fin %>% dplyr::select(-IncompMig), AlternateStops_Bischof)
-# stop_data <- stop_data %>% arrange(id_yr, POSIXct, flag)
-# rm(AlternateStops_Bischof)
-# proj <- st_crs(onstop_yr_fin)$input
-# 
-# stop_data <- stop_data %>% st_as_sf(coords = c("xend","yend"), crs = proj)
-# 
-# save(stop_data, file = "Data_out/Data/Stopover/RDH_UsedAvailStops_14t22_20230428.RData")
-# 
-# #load data
-# load("Data/Stopover/RDH_UsedAvailStops_14t22_20230426.RData")
-# head(stop_data)
-# stop_data$flag <- as.character(stop_data$flag)
-# 
-# mapview(stop_data[which(stop_data$id_yr == unique(stop_data$id_yr)[1]),], zcol = "flag")
-# 
-# #load greenscape calcs
-# load("Data/Greenscape/RDH_14t22_greenscapes_20230425.RData")
-# head(RDH_14t22_greenscapes)
-# 
-# #load fidelity to stops
-# load("Data/Stopover/FidelityMetrics_20230425.RData")
-# 
-# #per stop
-# stop1 <- IYD_stop_fidelity_list[[1]]
-# head(stop1)
-# 
-# #route level
-# mean1 <- IYD_mean_fidelity_list[[1]]
-# head(mean1)
-
 
 
