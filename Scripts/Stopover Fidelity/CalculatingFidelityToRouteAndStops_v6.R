@@ -365,8 +365,7 @@ for(i in 1:length(ids)){#length(ids)
   
   #subset dataset based on current and previous 3 id_yrs
   current.id <- onstop_yr_fin %>% filter(id_yr == ids[i]) 
-  current.id.h <- current.id %>% group_by(stop.n.c) %>% dplyr::summarise(km_mark = unique(km_mark), TimeStopped = unique(TimeStopped)) %>%
-    st_convex_hull()
+  
   
   
   if(previous.id.1 %in% ids){
@@ -377,12 +376,12 @@ for(i in 1:length(ids)){#length(ids)
     
     # temp.1 <- temp.1 %>% mutate(km_mark_corr = current.id$km_mark[sf::st_nearest_feature(geometry, current.id, pairwise = F)])
     
-    x.1 <- current.id.h %>% group_by(stop.n.c) %>% summarise(min.IYD.1 = as.numeric(min(sf::st_distance(temp.1, geometry, by_element = F)))) %>% ungroup()
+    x.1 <- current.id %>% group_by(stop.n.c) %>% summarise(min.IYD.1 = as.numeric(min(sf::st_distance(temp.1, geometry, by_element = F)))) %>% ungroup()
     xx.1 <- current.id %>% st_drop_geometry() %>% group_by(stop.n.c) %>% summarise(km_mark = mean(km_mark), TimeStopped = mean(TimeStopped)) %>% dplyr::select(TimeStopped, km_mark, stop.n.c) %>% as.data.frame()
     
     x.1 <- x.1 %>% left_join(xx.1, by = "stop.n.c")
     
-   s.1 <- current.id.h %>% group_by(stop.n.c) %>% dplyr::reframe(stop_prev = temp.1$stop.n.c[sf::st_nearest_feature(geometry, temp.1, pairwise = F)], km_prev = temp.1$km_mark[sf::st_nearest_feature(geometry, temp.1, pairwise = F)]) %>% distinct(stop.n.c, stop_prev, km_prev) %>%  as.data.frame()
+   s.1 <- current.id %>% group_by(stop.n.c) %>% dplyr::reframe(stop_prev = temp.1$stop.n.c[sf::st_nearest_feature(geometry, temp.1, pairwise = F)], km_prev = temp.1$km_mark[sf::st_nearest_feature(geometry, temp.1, pairwise = F)]) %>% distinct(stop.n.c, stop_prev, km_prev) %>%  as.data.frame()
    
    
    
@@ -395,7 +394,7 @@ for(i in 1:length(ids)){#length(ids)
     
     # t1 <- temp.1 %>% group_by(stop.n.c) %>% dplyr::summarise(km_mark = km_mark[1]) %>%
     #   st_convex_hull() #%>% dplyr::select(stop.n.c, km_mark)
-    # t2 <- current.id.h
+    # t2 <- current.id
     # 
     # mapview(t1, col.regions = "red") + mapview(t2)
     
@@ -414,12 +413,12 @@ for(i in 1:length(ids)){#length(ids)
     
     # temp.2 <- temp.2 %>% mutate(km_mark_corr = current.id$km_mark[sf::st_nearest_feature(geometry, current.id, pairwise = F)])
     
-    x.2 <- current.id.h %>% group_by(stop.n.c) %>% summarise(min.IYD.2 = as.numeric(min(sf::st_distance(temp.2, geometry, by_element = F)))) %>% ungroup()
+    x.2 <- current.id %>% group_by(stop.n.c) %>% summarise(min.IYD.2 = as.numeric(min(sf::st_distance(temp.2, geometry, by_element = F)))) %>% ungroup()
     xx.2 <- current.id %>% st_drop_geometry() %>% group_by(stop.n.c) %>% summarise(km_mark = mean(km_mark), TimeStopped = mean(TimeStopped)) %>% dplyr::select(TimeStopped, km_mark, stop.n.c) %>% as.data.frame()
     
     x.2 <- x.2 %>% left_join(xx.2, by = "stop.n.c")
     
-    s.2 <- current.id.h %>% group_by(stop.n.c) %>% dplyr::reframe(stop_prev = temp.2$stop.n.c[sf::st_nearest_feature(geometry, temp.2, pairwise = F)], km_prev = temp.2$km_mark[sf::st_nearest_feature(geometry, temp.2, pairwise = F)]) %>% distinct(stop.n.c, stop_prev, km_prev) %>%  as.data.frame()
+    s.2 <- current.id %>% group_by(stop.n.c) %>% dplyr::reframe(stop_prev = temp.2$stop.n.c[sf::st_nearest_feature(geometry, temp.2, pairwise = F)], km_prev = temp.2$km_mark[sf::st_nearest_feature(geometry, temp.2, pairwise = F)]) %>% distinct(stop.n.c, stop_prev, km_prev) %>%  as.data.frame()
     
     
     
@@ -446,12 +445,12 @@ for(i in 1:length(ids)){#length(ids)
     
     # temp.3 <- temp.3 %>% mutate(km_mark_corr = current.id$km_mark[sf::st_nearest_feature(geometry, current.id, pairwise = F)])
     
-    x.3 <- current.id.h %>% group_by(stop.n.c) %>% summarise(min.IYD.3 = as.numeric(min(sf::st_distance(temp.3, geometry, by_element = F)))) %>% ungroup()
+    x.3 <- current.id %>% group_by(stop.n.c) %>% summarise(min.IYD.3 = as.numeric(min(sf::st_distance(temp.3, geometry, by_element = F)))) %>% ungroup()
     xx.3 <- current.id %>% st_drop_geometry() %>% group_by(stop.n.c) %>% summarise(km_mark = mean(km_mark), TimeStopped = mean(TimeStopped)) %>% dplyr::select(TimeStopped, km_mark, stop.n.c) %>% as.data.frame()
     
     x.3 <- x.3 %>% left_join(xx.3, by = "stop.n.c")
     
-    s.3 <- current.id.h %>% group_by(stop.n.c) %>% dplyr::reframe(stop_prev = temp.3$stop.n.c[sf::st_nearest_feature(geometry, temp.3, pairwise = F)], km_prev = temp.3$km_mark[sf::st_nearest_feature(geometry, temp.3, pairwise = F)]) %>% distinct(stop.n.c, stop_prev, km_prev) %>%  as.data.frame()
+    s.3 <- current.id %>% group_by(stop.n.c) %>% dplyr::reframe(stop_prev = temp.3$stop.n.c[sf::st_nearest_feature(geometry, temp.3, pairwise = F)], km_prev = temp.3$km_mark[sf::st_nearest_feature(geometry, temp.3, pairwise = F)]) %>% distinct(stop.n.c, stop_prev, km_prev) %>%  as.data.frame()
     
     
     
@@ -477,12 +476,12 @@ for(i in 1:length(ids)){#length(ids)
     
     # temp.4 <- temp.4 %>% mutate(km_mark_corr = current.id$km_mark[sf::st_nearest_feature(geometry, current.id, pairwise = F)])
     
-    x.4 <- current.id.h %>% group_by(stop.n.c) %>% summarise(min.IYD.4 = as.numeric(min(sf::st_distance(temp.4, geometry, by_element = F)))) %>% ungroup()
+    x.4 <- current.id %>% group_by(stop.n.c) %>% summarise(min.IYD.4 = as.numeric(min(sf::st_distance(temp.4, geometry, by_element = F)))) %>% ungroup()
     xx.4 <- current.id %>% st_drop_geometry() %>% group_by(stop.n.c) %>% summarise(km_mark = mean(km_mark), TimeStopped = mean(TimeStopped)) %>% dplyr::select(TimeStopped, km_mark, stop.n.c) %>% as.data.frame()
     
     x.4 <- x.4 %>% left_join(xx.4, by = "stop.n.c")
     
-    s.4 <- current.id.h %>% group_by(stop.n.c) %>% dplyr::reframe(stop_prev = temp.4$stop.n.c[sf::st_nearest_feature(geometry, temp.4, pairwise = F)], km_prev = temp.4$km_mark[sf::st_nearest_feature(geometry, temp.4, pairwise = F)]) %>% distinct(stop.n.c, stop_prev, km_prev) %>%  as.data.frame()
+    s.4 <- current.id %>% group_by(stop.n.c) %>% dplyr::reframe(stop_prev = temp.4$stop.n.c[sf::st_nearest_feature(geometry, temp.4, pairwise = F)], km_prev = temp.4$km_mark[sf::st_nearest_feature(geometry, temp.4, pairwise = F)]) %>% distinct(stop.n.c, stop_prev, km_prev) %>%  as.data.frame()
     
     
     
@@ -495,7 +494,7 @@ for(i in 1:length(ids)){#length(ids)
     
     # t1 <- temp.4 %>% group_by(stop.n.c) %>% dplyr::summarise(km_mark = km_mark[1]) %>%
     #   st_convex_hull() #%>% dplyr::select(stop.n.c, km_mark)
-    # t2 <- current.id.h
+    # t2 <- current.id
     # 
     # mapview(t1, col.regions = "red") + mapview(t2)
     
@@ -513,12 +512,12 @@ for(i in 1:length(ids)){#length(ids)
     
     # temp.5 <- temp.5 %>% mutate(km_mark_corr = current.id$km_mark[sf::st_nearest_feature(geometry, current.id, pairwise = F)])
     
-    x.5 <- current.id.h %>% group_by(stop.n.c) %>% summarise(min.IYD.5 = as.numeric(min(sf::st_distance(temp.5, geometry, by_element = F)))) %>% ungroup()
+    x.5 <- current.id %>% group_by(stop.n.c) %>% summarise(min.IYD.5 = as.numeric(min(sf::st_distance(temp.5, geometry, by_element = F)))) %>% ungroup()
     xx.5 <- current.id %>% st_drop_geometry() %>% group_by(stop.n.c) %>% summarise(km_mark = mean(km_mark), TimeStopped = mean(TimeStopped)) %>% dplyr::select(TimeStopped, km_mark, stop.n.c) %>% as.data.frame()
     
     x.5 <- x.5 %>% left_join(xx.5, by = "stop.n.c")
     
-    s.5 <- current.id.h %>% group_by(stop.n.c) %>% dplyr::reframe(stop_prev = temp.5$stop.n.c[sf::st_nearest_feature(geometry, temp.5, pairwise = F)], km_prev = temp.5$km_mark[sf::st_nearest_feature(geometry, temp.5, pairwise = F)]) %>% distinct(stop.n.c, stop_prev, km_prev) %>%  as.data.frame()
+    s.5 <- current.id %>% group_by(stop.n.c) %>% dplyr::reframe(stop_prev = temp.5$stop.n.c[sf::st_nearest_feature(geometry, temp.5, pairwise = F)], km_prev = temp.5$km_mark[sf::st_nearest_feature(geometry, temp.5, pairwise = F)]) %>% distinct(stop.n.c, stop_prev, km_prev) %>%  as.data.frame()
     
     
     
@@ -531,7 +530,7 @@ for(i in 1:length(ids)){#length(ids)
     
     # t1 <- temp.5 %>% group_by(stop.n.c) %>% dplyr::summarise(km_mark = km_mark[1]) %>%
     #   st_convex_hull() #%>% dplyr::select(stop.n.c, km_mark)
-    # t2 <- current.id.h
+    # t2 <- current.id
     # 
     # mapview(t1, col.regions = "red") + mapview(t2)
     
@@ -549,12 +548,12 @@ for(i in 1:length(ids)){#length(ids)
     
     # temp.6 <- temp.6 %>% mutate(km_mark_corr = current.id$km_mark[sf::st_nearest_feature(geometry, current.id, pairwise = F)])
     
-    x.6 <- current.id.h %>% group_by(stop.n.c) %>% summarise(min.IYD.6 = as.numeric(min(sf::st_distance(temp.6, geometry, by_element = F)))) %>% ungroup()
+    x.6 <- current.id %>% group_by(stop.n.c) %>% summarise(min.IYD.6 = as.numeric(min(sf::st_distance(temp.6, geometry, by_element = F)))) %>% ungroup()
     xx.6 <- current.id %>% st_drop_geometry() %>% group_by(stop.n.c) %>% summarise(km_mark = mean(km_mark), TimeStopped = mean(TimeStopped)) %>% dplyr::select(TimeStopped, km_mark, stop.n.c) %>% as.data.frame()
     
     x.6 <- x.6 %>% left_join(xx.6, by = "stop.n.c")
     
-    s.6 <- current.id.h %>% group_by(stop.n.c) %>% dplyr::reframe(stop_prev = temp.6$stop.n.c[sf::st_nearest_feature(geometry, temp.6, pairwise = F)], km_prev = temp.6$km_mark[sf::st_nearest_feature(geometry, temp.6, pairwise = F)]) %>% distinct(stop.n.c, stop_prev, km_prev) %>%  as.data.frame()
+    s.6 <- current.id %>% group_by(stop.n.c) %>% dplyr::reframe(stop_prev = temp.6$stop.n.c[sf::st_nearest_feature(geometry, temp.6, pairwise = F)], km_prev = temp.6$km_mark[sf::st_nearest_feature(geometry, temp.6, pairwise = F)]) %>% distinct(stop.n.c, stop_prev, km_prev) %>%  as.data.frame()
     
     
     
@@ -567,7 +566,7 @@ for(i in 1:length(ids)){#length(ids)
     
     # t1 <- temp.6 %>% group_by(stop.n.c) %>% dplyr::summarise(km_mark = km_mark[1]) %>%
     #   st_convex_hull() #%>% dplyr::select(stop.n.c, km_mark)
-    # t2 <- current.id.h
+    # t2 <- current.id
     # 
     # mapview(t1, col.regions = "red") + mapview(t2)
     
@@ -585,12 +584,12 @@ for(i in 1:length(ids)){#length(ids)
     
     # temp.7 <- temp.7 %>% mutate(km_mark_corr = current.id$km_mark[sf::st_nearest_feature(geometry, current.id, pairwise = F)])
     
-    x.7 <- current.id.h %>% group_by(stop.n.c) %>% summarise(min.IYD.7 = as.numeric(min(sf::st_distance(temp.7, geometry, by_element = F)))) %>% ungroup()
+    x.7 <- current.id %>% group_by(stop.n.c) %>% summarise(min.IYD.7 = as.numeric(min(sf::st_distance(temp.7, geometry, by_element = F)))) %>% ungroup()
     xx.7 <- current.id %>% st_drop_geometry() %>% group_by(stop.n.c) %>% summarise(km_mark = mean(km_mark), TimeStopped = mean(TimeStopped)) %>% dplyr::select(TimeStopped, km_mark, stop.n.c) %>% as.data.frame()
     
     x.7 <- x.7 %>% left_join(xx.7, by = "stop.n.c")
     
-    s.7 <- current.id.h %>% group_by(stop.n.c) %>% dplyr::reframe(stop_prev = temp.7$stop.n.c[sf::st_nearest_feature(geometry, temp.7, pairwise = F)], km_prev = temp.7$km_mark[sf::st_nearest_feature(geometry, temp.7, pairwise = F)]) %>% distinct(stop.n.c, stop_prev, km_prev) %>%  as.data.frame()
+    s.7 <- current.id %>% group_by(stop.n.c) %>% dplyr::reframe(stop_prev = temp.7$stop.n.c[sf::st_nearest_feature(geometry, temp.7, pairwise = F)], km_prev = temp.7$km_mark[sf::st_nearest_feature(geometry, temp.7, pairwise = F)]) %>% distinct(stop.n.c, stop_prev, km_prev) %>%  as.data.frame()
     
     
     
@@ -603,7 +602,7 @@ for(i in 1:length(ids)){#length(ids)
     
     # t1 <- temp.7 %>% group_by(stop.n.c) %>% dplyr::summarise(km_mark = km_mark[1]) %>%
     #   st_convex_hull() #%>% dplyr::select(stop.n.c, km_mark)
-    # t2 <- current.id.h
+    # t2 <- current.id
     # 
     # mapview(t1, col.regions = "red") + mapview(t2)
     

@@ -30,7 +30,8 @@ load("REnvs/EnvForDeviationsAnalysis_20230509.RDS")
 setwd("C:/Users/lwilde2/Documents/PhD_AdaptiveFidelity/")
 load("Data_out/Data/Stopover/RDH_StopoverBundle_14t22_20230507.RData")
 
-load("Data_out/Data/Stopover/FidelityMetrics_20230507.RData")
+load("Data_out/Data/Stopover/FidelityDataset_HighUse_20230513.RData")
+load("Data_out/Data/Stopover/FidelityMetrics_HighUse_20230513.RData")
 
 #
 onstop_yr_fin <- onstop_yr_fin %>% mutate(DFP = JDate - MaxIRGday, absDFP = abs(DFP))
@@ -101,16 +102,43 @@ showConnections(); sfStop(); showConnections()
 
 data <- f
 
+
+
+setwd("C:/Users/lwilde2/Documents/PhD_AdaptiveFidelity/")
+load("C:/Users/lwilde2/Desktop/RDH Database/Processed Data/RDH_AllMigrations_Bischof_2014t2022_20230425.RData")
+
+
+
+Spring.summary <- Spring.summary %>% mutate(Year = year(start), J = yday(start))  %>% drop_na(J)
+
+Spring.sum.c <- Spring.summary %>% filter(Year > 2015) %>% group_by(Year) %>% mutate(cut = cut(J, breaks = quantile(J, c(0,.33,.66,1)),include.lowest = TRUE, labels = FALSE))
+
+Spring.sum.c1 <- Spring.summary %>% filter(Year <= 2015) %>% group_by(Year) %>% mutate(cut = cut(J, breaks = quantile(J, c(0,.5,1)),include.lowest = TRUE, labels = FALSE))
+
+sumall <- rbind(Spring.sum.c, Spring.sum.c1)
+
+Spring.summary[which(is.na(Spring.summary$J)),]      
+
+
+
+
+
+
+
 data <- data %>% ungroup() %>% mutate(DFP_alt = JDate - MaxIRGday_alt, absDFP_alt = abs(DFP_alt),diffDFP = DFP - DFP_alt, diffabsDFP = absDFP - absDFP_alt, diffIRGday = MaxIRGday - MaxIRGday_alt, diffSpring = SpringLength - SpringLength_alt) %>% ungroup()  
 
 datasum <- data %>% group_by(stop.n.c) %>% dplyr::summarise(diffDFP = mean(diffDFP), diffabsDFP = mean(diffabsDFP), diffIRGday = mean(diffIRGday), diffSpring = mean(diffSpring), iyd = mean(iyd),km_mark_1 = unique(km_mark_1), km_prev_1 = unique(km_prev_1), diffIRGsum = sum(IRG_scaled) - sum(IRG_scaled_alt))
 
 
 
+
+
+
+
 head(datasum)
 
 datasum$diffkm = abs(datasum$km_mark_1 - datasum$km_prev_1)
-
+datasum$direction = ifelse(datasum$km_mark_1 - datasum$km_prev_1 > 0, 1, -1)
 summary(datasum$diffkm)
 
 #rules
@@ -118,28 +146,89 @@ summary(datasum$diffkm)
 # > 5 km diff
 
 
-datasum <- datasum %>% mutate(iydc= ifelse(iyd < 5000, 1, ifelse(iyd > 5000 & iyd < 10000, 2, 3)), kmc = ifelse(diffkm < 5, 1, ifelse(diffkm > 5 & diffkm < 10, 2, 3)), kmcut = ifelse(km_mark_1 <= 80, "start", ifelse(km_mark_1 > 80 & km_mark_1 < 160, "middle", "end")), status = iydc + kmc)
+
+datasum <- datasum %>% mutate(iyd.signed = iyd * direction, iyd.signed.c = ifelse(iyd.signed > 5000, "skip", ifelse(iyd.signed < -5000, "short", NA)), kmcut = ifelse(km_mark_1 <= 80, "start", ifelse(km_mark_1 > 80 & km_mark_1 < 160, "middle", "end")), status = iyd.signed.c ) #, kmc = ifelse(diffkm < 5, 1, ifelse(diffkm > 5 & diffkm < 10, 2, 3)) + kmc
 
 #codes
 #2 = same , 3 = shift , 4 = shift, 5 = shift, 6 = skip
 
-unique(datasum$iydc)
-unique(datasum$kmc)
 unique(datasum$status)
 
-datasum$status <- ifelse(datasum$status == 2, "use", ifelse(datasum$status < 6 & datasum$status > 2, "alt", "skip"))
+datasum <- datasum %>% drop_na(iyd.signed.c)
 
-# datasum <- datasum %>% mutate(status = ifelse(iyd < 10000 & diffkm < 10000, ifelse(iyd < 1000,"use","alt"),"skip"), kmcut = ifelse(km_mark_1 <= 80, "start", ifelse(km_mark_1 > 80 & km_mark_1 < 160, "middle", "end")))
+
 
 datasum <- datasum %>% mutate( AID = str_sub(stop.n.c, 0,3), id_yr = str_sub(stop.n.c, 0,8), Year = str_sub(stop.n.c, 5, 8), stop = as.numeric(str_split(stop.n.c, "_", simplify = TRUE)[,3]))
 
+datasum <- datasum %>% left_join(sumall %>% mutate(Year = as.character(Year)) %>% dplyr::select(id_yr, cut), by="id_yr")
+
+datasum$cut <- ifelse(datasum$cut == 1, "early", ifelse(datasum$cut == 2, "middle", "late"))
+
+# datasum <- datasum %>% mutate(status = ifelse(iyd < 10000 & diffkm < 10000, ifelse(iyd < 1000,"use","alt"),"skip"), kmcut = ifelse(km_mark_1 <= 80, "start", ifelse(km_mark_1 > 80 & km_mark_1 < 160, "middle", "end")))
+
+
+
 library(ggridges)
 
-ggplot(datasum) + theme_classic() +  stat_density_ridges(aes(x = diffDFP, y = factor(kmcut), fill = factor(status), color = factor(status)), quantile_lines = TRUE, quantiles = 2, alpha = .3, scale = 0.9)
-ggplot(datasum) + geom_density_ridges2(aes(x = diffabsDFP, y = factor(kmcut), fill = factor(status), color = factor(status)), quantile_lines = TRUE, quantiles = 2, alpha = .3, scale = 0.9)+ theme_classic()
-ggplot(datasum) + geom_density_ridges2(aes(x = diffIRGday, y = factor(kmcut), fill = factor(status), color = factor(status)), quantile_lines = TRUE, quantiles = 2, alpha = .3, scale = 0.9)+ theme_classic()
-ggplot(datasum) + geom_density_ridges2(aes(x = diffSpring, y = factor(kmcut), fill = factor(status), color = factor(status)), quantile_lines = TRUE, quantiles = 2, alpha = .3, scale = 0.9)+ theme_classic()
-ggplot(datasum) + geom_density_ridges2(aes(x = diffIRGsum, y = factor(kmcut), fill = factor(status), color = factor(status)), quantile_lines = TRUE, quantiles = 2, alpha = .3, scale = 0.9)+ theme_classic()
+ggplot(datasum %>% filter(kmcut == "start")) + theme_classic() +  stat_density_ridges(aes(x = diffDFP, y = factor(cut), fill = factor(status), color = factor(status)), quantile_lines = TRUE, quantiles = 2, alpha = .3, scale = 0.9) +
+ggplot(datasum %>% filter(kmcut == "middle")) + theme_classic() +  stat_density_ridges(aes(x = diffDFP, y = factor(cut), fill = factor(status), color = factor(status)), quantile_lines = TRUE, quantiles = 2, alpha = .3, scale = 0.9)+
+ggplot(datasum %>% filter(kmcut == "end")) + theme_classic() +  stat_density_ridges(aes(x = diffDFP, y = factor(cut), fill = factor(status), color = factor(status)), quantile_lines = TRUE, quantiles = 2, alpha = .3, scale = 0.9)
+
+
+ggplot(datasum %>% filter(kmcut == "start")) + theme_classic() +  stat_density_ridges(aes(x = diffabsDFP, y = factor(cut), fill = factor(status), color = factor(status)), quantile_lines = TRUE, quantiles = 2, alpha = .3, scale = 0.9) +
+  ggplot(datasum %>% filter(kmcut == "middle")) + theme_classic() +  stat_density_ridges(aes(x = diffabsDFP, y = factor(cut), fill = factor(status), color = factor(status)), quantile_lines = TRUE, quantiles = 2, alpha = .3, scale = 0.9)+
+  ggplot(datasum %>% filter(kmcut == "end")) + theme_classic() +  stat_density_ridges(aes(x = diffabsDFP, y = factor(cut), fill = factor(status), color = factor(status)), quantile_lines = TRUE, quantiles = 2, alpha = .3, scale = 0.9)
+
+head(datasum)
+unique(datasum$status)
+
+stat_func <- function(data) {
+  group_values <- data
+  # Change the statistic of interest as needed
+  mean(group_values)
+}
+
+stat_func(datasum$diffabsDFP)
+
+# Use group_by and summarize to calculate bootstrap confidence intervals per group
+library(dplyr)
+library(Hmisc)
+
+boot <- datasum %>% 
+  dplyr::select(kmcut, cut, status, diffabsDFP) %>% 
+  group_by(kmcut, cut, status) %>% 
+  group_map(~ smean.cl.boot(., conf.int = .95, B = 1000, na.rm = TRUE)) %>%
+  bind_rows()
+
+dat <- datasum %>% 
+  dplyr::select(kmcut, cut, status, diffabsDFP) %>% 
+  group_by(kmcut, cut, status) %>% summarise(Mean = mean(diffabsDFP))
+
+dat <- dat %>% left_join(boot, by = "Mean")
+
+data_new <- dat                             # Replicate data
+data_new$group <- factor(data_new$cut,     
+                         levels = c("early", "middle", "late")) # Reordering group factor levels
+data_new$x <- factor(data_new$kmcut,     
+                         levels = c("start", "middle", "end")) 
+
+ggplot(data_new) + geom_pointrange(aes(x = x, y = Mean, ymin = Lower, ymax = Upper, group = factor(status), color = factor(status)), position = position_dodge(width = .5), size = 2.15) + geom_hline(aes(yintercept = 0), linetype = "dashed") + labs(y = "Surfing Improvement From Remembered Site", x = "Section of Corridor", color = "Stop Status") + scale_color_manual(values = c("#3C5488FF","#DC0000FF"), labels = c("Short", "Skipped")) + theme_classic() + facet_wrap(~ group) + theme(axis.title.x = element_text(size = 40,color = "grey18"), axis.title.y = element_text(size = 40,color = "grey18"),axis.text.x = element_text(size = 30,color = "grey18"),axis.text.y = element_text(size = 30,color = "grey18"),legend.text = element_text(size = 30,color = "grey18"), legend.title = element_text(size = 40,color = "grey18"),legend.key.size = unit(2, 'cm'), legend.key.height = unit(1, 'cm'), legend.key.width = unit(2, 'cm'), strip.text = element_text(size = 30,color = "grey18")) + scale_y_continuous(limits = c(-30,30), breaks = seq(-30,30,10))
+
+ggsave(filename = "C:/Users/lwilde2/Documents/PhD_AdaptiveFidelity/Figures/ShortAndSkippedSites_20230513_2.jpg", width = 46, height = 30, units = "cm", dpi = 600)
+
+ggplot(datasum %>% filter(kmcut == "start")) + geom_density_ridges2(aes(x = diffIRGday, y = factor(cut), fill = factor(status), color = factor(status)), quantile_lines = TRUE, quantiles = 2, alpha = .3, scale = 0.9)+ theme_classic() +
+  ggplot(datasum %>% filter(kmcut == "middle")) + geom_density_ridges2(aes(x = diffIRGday, y = factor(cut), fill = factor(status), color = factor(status)), quantile_lines = TRUE, quantiles = 2, alpha = .3, scale = 0.9)+ theme_classic() +
+  ggplot(datasum %>% filter(kmcut == "end")) + geom_density_ridges2(aes(x = diffIRGday, y = factor(cut), fill = factor(status), color = factor(status)), quantile_lines = TRUE, quantiles = 2, alpha = .3, scale = 0.9)+ theme_classic()
+
+
+ggplot(datasum %>% filter(kmcut == "start")) + geom_density_ridges2(aes(x = diffSpring, y = factor(cut), fill = factor(status), color = factor(status)), quantile_lines = TRUE, quantiles = 2, alpha = .3, scale = 0.9)+ theme_classic() +
+  ggplot(datasum %>% filter(kmcut == "middle")) + geom_density_ridges2(aes(x = diffSpring, y = factor(cut), fill = factor(status), color = factor(status)), quantile_lines = TRUE, quantiles = 2, alpha = .3, scale = 0.9)+ theme_classic() +
+  ggplot(datasum %>% filter(kmcut == "end")) + geom_density_ridges2(aes(x = diffSpring, y = factor(cut), fill = factor(status), color = factor(status)), quantile_lines = TRUE, quantiles = 2, alpha = .3, scale = 0.9)+ theme_classic()
+
+
+ggplot(datasum %>% filter(kmcut == "start")) + geom_density_ridges2(aes(x = diffIRGsum, y = factor(cut), fill = factor(status), color = factor(status)), quantile_lines = TRUE, quantiles = 2, alpha = .3, scale = 0.9)+ theme_classic()+
+ggplot(datasum %>% filter(kmcut == "middle")) + geom_density_ridges2(aes(x = diffIRGsum, y = factor(cut), fill = factor(status), color = factor(status)), quantile_lines = TRUE, quantiles = 2, alpha = .3, scale = 0.9)+ theme_classic()+
+ggplot(datasum %>% filter(kmcut == "end")) + geom_density_ridges2(aes(x = diffIRGsum, y = factor(cut), fill = factor(status), color = factor(status)), quantile_lines = TRUE, quantiles = 2, alpha = .3, scale = 0.9)+ theme_classic()
 
 
 idyrsum <- datasum %>% group_by(id_yr,status, kmcut) %>% summarise_at(c("diffDFP", "diffabsDFP" ,"diffIRGday" ,"diffSpring","diffIRGsum"),mean)

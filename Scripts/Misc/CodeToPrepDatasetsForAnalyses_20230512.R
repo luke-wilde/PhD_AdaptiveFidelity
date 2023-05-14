@@ -60,18 +60,25 @@ library(gammit)
 
 setwd("C:/Users/lwilde2/Documents/PhD_AdaptiveFidelity/")
 load("Data_out/Data/Stopover/RDH_StopoverBundle_14t22_20230511.RData")
-load("Data_out/Data/Stopover/FidelityMetrics_20230511.RData")
+load("Data_out/Data/Stopover/FidelityMetrics_HighUse_20230513.RData")
 #load("Data_out/Data/Stopover/RDH_AlternateStops_Bischof_20230428.RData")
 load("Data_out/Data/Greenscape/RDH_14t22_greenscapes_20230425.RData")
 #load("Data_out/Data/Stopover/RDH_UsedAvailStops_14t22_20230428.RData")
 load("C:/Users/lwilde2/Desktop/RDH Database/Processed Data/RDH_AllMigrations_Bischof_2014t2022_20230425.RData")
 
-# readRDS("./REnvs/Analysis_04282023.RDS")
+load("Data_out/Data/Stopover/FidelityDataset_HighUse_20230513.RData")
 
-# extract fidelity from lists
-# meanfid1 <- IYD_mean_fidelity_list[[1]]
-# meanfid2 <- IYD_mean_fidelity_list[[2]]
-# meanfid3 <- IYD_mean_fidelity_list[[3]]
+
+#---------------------------------#
+# Calcs per stop and id_yr ####
+
+IYD_stop_fidelity$meanDev <- rowMeans(IYD_stop_fidelity[,c("dev_1","dev_2","dev_3","dev_4","dev_5","dev_6","dev_7")], na.rm = TRUE)
+IYD_stop_fidelity$meanIYD <- rowMeans(IYD_stop_fidelity[,c("iyd_1","iyd_2","iyd_3","iyd_4","iyd_5","iyd_6","iyd_7")], na.rm = TRUE)
+
+
+sumid_yr <- IYD_stop_fidelity %>% mutate(id_yr = paste(AID.1,"_",curr_Y.1,sep = "")) %>% group_by(id_yr) %>% summarise(OverMeanDev = mean(meanDev), OverMeanIYD = mean(meanIYD), OverSumDev = sum(meanDev))
+sumaid <- IYD_stop_fidelity %>% mutate(id_yr = paste(AID.1,"_",curr_Y.1,sep = "")) %>% group_by(AID.1) %>% summarise(OverMeanDev = mean(meanDev,na.rm = TRUE), OverMeanIYD = mean(meanIYD,na.rm = TRUE), OverSumDev = sum(meanDev,na.rm = TRUE)); sumaid
+
 
 fid1 <- IYD_stop_fidelity_list[[1]]
 fid2 <- IYD_stop_fidelity_list[[2]]
@@ -92,6 +99,17 @@ fid1
 fid2
 fid3
 
+sumcheck <- data2 %>% group_by(id_yr) %>% summarise(start = min(km_mark), end = max(km_mark))
+remove <- sumcheck %>% filter(start > 100 | end < 150) %>% dplyr::select(id_yr) %>% st_drop_geometry()
+
+remove <- remove %>% mutate(AID = str_sub(id_yr, 0,3))
+#remove problem deer with incomplete migrations
+
+fid1 <- fid1 %>% filter(!AID.1 %in% remove$AID)
+fid2 <- fid2 %>% filter(!AID.2 %in% remove$AID)
+fid3 <- fid3 %>% filter(!AID.3 %in% remove$AID)
+
+
 #adaptability of fidelity?
 #absDFP ~ greenscape * IYD
 #DFP ~ greenscape * IYD
@@ -109,169 +127,203 @@ fid3
 #in individuals
 
 #process data
-
-iyddat <- IYD_stop_fidelity_list
-
-names(iyddat[[1]]) <- c("iyd", "SpatOver",    "stop.n",  "km_mark",  "km_prev", "TimeStopped", "curr_Y", "prev_Y", "AID",    "id_yr")
-names(iyddat[[2]]) <- c("iyd", "SpatOver",    "stop.n",  "km_mark",  "km_prev", "TimeStopped", "curr_Y", "prev_Y", "AID",    "id_yr")
-names(iyddat[[3]]) <- c("iyd", "SpatOver",    "stop.n",  "km_mark",  "km_prev", "TimeStopped", "curr_Y", "prev_Y", "AID",    "id_yr")
-names(iyddat[[4]]) <- c("iyd", "SpatOver",    "stop.n",  "km_mark",  "km_prev", "TimeStopped", "curr_Y", "prev_Y", "AID",    "id_yr")
-names(iyddat[[5]]) <- c("iyd", "SpatOver",    "stop.n",  "km_mark",  "km_prev", "TimeStopped", "curr_Y", "prev_Y", "AID",    "id_yr")
-names(iyddat[[6]]) <- c("iyd", "SpatOver",    "stop.n",  "km_mark",  "km_prev", "TimeStopped", "curr_Y", "prev_Y", "AID",    "id_yr")
-names(iyddat[[7]]) <- c("iyd", "SpatOver",    "stop.n",  "km_mark",  "km_prev", "TimeStopped", "curr_Y", "prev_Y", "AID",    "id_yr")
-
-all <- do.call(rbind, iyddat)
-
-all$ydiff <- as.numeric(all$curr_Y) - as.numeric(all$prev_Y)
-
-all.sum <- all %>% group_by(id_yr, ydiff) %>% summarise(stop.n = n(), mean.iyd = mean(iyd))
-
-ggplot(all.sum) + geom_line(aes(x = ydiff, y = mean.iyd/1000, color = id_yr), linewidth = 1.4, alpha = .5) + theme_classic() + theme(legend.position = "none") + labs(x = "Years Between Migration Events", y = bquote('Mean Inter-year Distance (km) '~(Fidelity ^-1))) + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 13,color = "grey18"),axis.text.y = element_text(size = 13,color = "grey18"),legend.text = element_text(size = 16,color = "grey18")) + coord_cartesian(xlim = c(1,7), ylim = c(0,80)) + scale_x_continuous(expand = c(0,0), limits = c(1,7), breaks = seq(1,7,1))  + scale_y_continuous(expand = c(0,0), limits = c(0,80), breaks = seq(0,80,10))
-
-head(all)
-
-mod.km.eff <- mgcv::gamm(round(iyd,0) ~ s(km_mark, by = factor(ydiff), bs = "cs", k = 5), method = "GCV", random = list(id_yr=~1, curr_Y = ~1, AID=~1), family = poisson(link = "log"), data = all %>% filter(km_mark < 240))
-mod.km.eff2 <- mgcv::gamm(round(iyd,0) ~ s(km_mark, bs = "cs", k = 5), method = "GCV", random = list(id_yr=~1, curr_Y = ~1, AID=~1), weights = 1/ydiff, family = poisson(link = "log"), data = all %>% filter(km_mark < 240))
-
-plot.gam(mod.km.eff2$gam)
-
-newdata = data.frame(expand.grid(km_mark = seq(1,240,by = 1), ydiff = seq(1,7,by = 1), AID = "108", curr_Y = 2017, id_yr = "108_2017"))
-newdata$pred <- gammit::predict_gamm(mod.km.eff2$gam , newdata = newdata, se = T)$prediction
-newdata$se <- gammit::predict_gamm(mod.km.eff2$gam , newdata = newdata, se = T)$se
-
-ggplot(data = newdata) + geom_line(aes(x = km_mark, y = pred), linewidth = 1.2) + geom_ribbon(aes(x = km_mark, ymin = pred - se, ymax = pred + se), alpha = .2) + theme_classic()
-
-
+# 
+# all <- do.call(rbind, iyddat)
+# 
+# all$ydiff <- as.numeric(all$curr_Y) - as.numeric(all$prev_Y)
+# 
+# all.sum <- all %>% group_by(id_yr, ydiff) %>% summarise(stop.n = n(), mean.iyd = mean(iyd))
+# 
+# ggplot(all.sum) + geom_line(aes(x = ydiff, y = mean.iyd/1000, color = id_yr), linewidth = 1.4, alpha = .5) + theme_classic() + theme(legend.position = "none") + labs(x = "Years Between Migration Events", y = bquote('Mean Inter-year Distance (km) '~(Fidelity ^-1))) + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 13,color = "grey18"),axis.text.y = element_text(size = 13,color = "grey18"),legend.text = element_text(size = 16,color = "grey18")) + coord_cartesian(xlim = c(1,7), ylim = c(0,80)) + scale_x_continuous(expand = c(0,0), limits = c(1,7), breaks = seq(1,7,1))  + scale_y_continuous(expand = c(0,0), limits = c(0,80), breaks = seq(0,80,10))
+# 
+# head(all)
+# 
+# mod.km.eff <- mgcv::gamm(round(iyd,0) ~ s(km_mark, by = factor(ydiff), bs = "cs", k = 5), method = "GCV", random = list(id_yr=~1, curr_Y = ~1, AID=~1), family = poisson(link = "log"), data = all %>% filter(km_mark < 240))
+# mod.km.eff2 <- mgcv::gamm(round(iyd,0) ~ s(km_mark, bs = "cs", k = 5), method = "GCV", random = list(id_yr=~1, curr_Y = ~1, AID=~1), weights = 1/ydiff, family = poisson(link = "log"), data = all %>% filter(km_mark < 240))
+# 
+# plot.gam(mod.km.eff2$gam)
+# 
+# newdata = data.frame(expand.grid(km_mark = seq(1,240,by = 1), ydiff = seq(1,7,by = 1), AID = "108", curr_Y = 2017, id_yr = "108_2017"))
+# newdata$pred <- gammit::predict_gamm(mod.km.eff2$gam , newdata = newdata, se = T)$prediction
+# newdata$se <- gammit::predict_gamm(mod.km.eff2$gam , newdata = newdata, se = T)$se
+# 
+# ggplot(data = newdata) + geom_line(aes(x = km_mark, y = pred), linewidth = 1.2) + geom_ribbon(aes(x = km_mark, ymin = pred - se, ymax = pred + se), alpha = .2) + theme_classic()
+# 
+# 
 
 
 
 # ggplot(fid1) + theme(legend.position = "none") + coord_cartesian(xlim = c(0,220), ylim = c(0,100000)) + geom_point(aes(x = km_mark_1, y = iyd_1, group = AID, color = AID),  alpha = .2) + geom_smooth(aes(x = km_mark_1, y = iyd_1)) #geom_line(aes(x = km_mark_1, y = iyd_1, group = AID, color = AID)) +
 
 
-# First hypothesis, accumulated iyd should hurt ability to surf - decay of information?
+# First hypothesis, accumulated dev should hurt ability to surf - decay of information?
 
-t1 <- onstop_yr_fin %>% left_join(fid1 %>% dplyr::select(iyd_1, stop.n_1, km_mark_1, id_yr) %>% rename(stop.n.c = stop.n_1), by = c("stop.n.c", "id_yr")) %>% arrange(id_yr, POSIXct)
+sumfid1 <- fid1 %>% group_by(id_yr) %>% summarise(Duration = (max(endJul_1) - min(startJul_1)), SumDev = sum(dev_1)/Duration)
+fid1 <- fid1 %>% group_by(id_yr) %>% mutate(cumulDev = cumsum(dev_1))
+
+sumfid2 <- fid2 %>% group_by(id_yr) %>% summarise(Duration = (max(endJul_2) - min(startJul_2)), SumDev = sum(dev_2)/Duration)
+fid2 <- fid2 %>% group_by(id_yr) %>% mutate(cumulDev = cumsum(dev_2))
+
+sumfid3 <- fid3 %>% group_by(id_yr) %>% summarise(Duration = (max(endJul_3) - min(startJul_3)), SumDev = sum(dev_3)/Duration)
+fid3 <- fid3 %>% group_by(id_yr) %>% mutate(cumulDev = cumsum(dev_3))
+
+
+t1 <- onhigh_yr_fin %>% left_join(fid1 %>% dplyr::select(iyd_1, dev_1, cumulDev, stop.n_1, km_mark_1) %>% rename(stop.n.c = stop.n_1), by = c("stop.n.c", "id_yr")) %>% arrange(id_yr, POSIXct)
 t1 <- t1 %>% mutate(DFP = JDate - MaxIRGday, absDFP = abs(DFP))
 
-t2 <- onstop_yr_fin %>% left_join(fid2 %>% dplyr::select(iyd_2, stop.n_2, km_mark_2, id_yr) %>% rename(stop.n.c = stop.n_2), by = c("stop.n.c", "id_yr")) %>% arrange(id_yr, POSIXct)
+t2 <- onhigh_yr_fin %>% left_join(fid2 %>% dplyr::select(iyd_2, dev_2, cumulDev, stop.n_2, km_mark_2) %>% rename(stop.n.c = stop.n_2), by = c("stop.n.c", "id_yr")) %>% arrange(id_yr, POSIXct)
 t2 <- t2 %>% mutate(DFP = JDate - MaxIRGday, absDFP = abs(DFP))
 
-t3 <- onstop_yr_fin %>% left_join(fid3 %>% dplyr::select(iyd_3, stop.n_3, km_mark_3, id_yr) %>% rename(stop.n.c = stop.n_3), by = c("stop.n.c", "id_yr")) %>% arrange(id_yr, POSIXct)
+t3 <- onhigh_yr_fin %>% left_join(fid3 %>% dplyr::select(iyd_3, dev_3, cumulDev, stop.n_3, km_mark_3) %>% rename(stop.n.c = stop.n_3), by = c("stop.n.c", "id_yr")) %>% arrange(id_yr, POSIXct)
 t3 <- t3 %>% mutate(DFP = JDate - MaxIRGday, absDFP = abs(DFP)) 
 
-#cumulative iyd of each point
-# t1 <- t1 %>% group_by(stop.n.c) %>% mutate(iydsimp = ifelse(duplicated(iyd_1), 0, iyd_1)) %>% ungroup() %>% group_by(id_yr) %>% mutate(ciyd = cumsum(iydsimp)) %>% ungroup() %>% group_by(id_yr) %>% slice(which(row_number() %% 3 == 1))
-# t2 <- t2 %>% group_by(stop.n.c) %>% mutate(iydsimp = ifelse(duplicated(iyd_2), 0, iyd_2)) %>% ungroup() %>% group_by(id_yr) %>% mutate(ciyd = cumsum(iydsimp)) %>% group_by(id_yr) %>% slice(which(row_number() %% 3 == 1))
-# t3 <- t3 %>% group_by(stop.n.c) %>% mutate(iydsimp = ifelse(duplicated(iyd_3), 0, iyd_3)) %>% ungroup() %>% group_by(id_yr) %>% mutate(ciyd = cumsum(iydsimp)) %>% group_by(id_yr) %>% slice(which(row_number() %% 3 == 1))
 
-
-#confirmed no relatinoship between
-ggplot(t1 %>% group_by(stop.n.c) %>% summarise(avDFP = mean(absDFP), TimeStopped = unique(TimeStopped))) + geom_point(aes(x = TimeStopped, y = avDFP)) + geom_smooth(aes(x = TimeStopped, y = avDFP), method = "loess")
 
 #need to model this, with random effects
 
 #averaging to each stop
-t1_sum <- t1 %>% group_by(stop.n.c) %>% summarise(absDFP = round(mean(absDFP),0), DFP = round(mean(DFP),0), TimeStopped = unique(TimeStopped), id_yr = unique(id_yr), AID = unique(AID), Year = unique(Year), iyd = unique(iyd_1), km = mean(km_mark))
-t1_sum <- t1_sum %>% group_by(id_yr) %>% mutate(ciyd = cumsum(iyd))
-
-t2_sum <- t2 %>% group_by(stop.n.c) %>% summarise(absDFP = round(mean(absDFP),0), DFP = round(mean(DFP),0), TimeStopped = unique(TimeStopped), id_yr = unique(id_yr), AID = unique(AID), Year = unique(Year), iyd = unique(iyd_2), km = mean(km_mark))
-t2_sum <- t2_sum %>% group_by(id_yr) %>% mutate(ciyd = cumsum(iyd))
-
-t3_sum <- t3 %>% group_by(stop.n.c) %>% summarise(absDFP = round(mean(absDFP),0), DFP = round(mean(DFP),0), TimeStopped = unique(TimeStopped), id_yr = unique(id_yr), AID = unique(AID), Year = unique(Year), iyd = unique(iyd_3), km = mean(km_mark))
-t3_sum <- t3_sum %>% group_by(id_yr) %>% mutate(ciyd = cumsum(iyd))
-
-#lmer of relationship
-#average per stop, and what about including timestopped?
-
-m1 <- glmer(absDFP ~ scale(iyd) + (1|id_yr) + (1|AID) + (1|Year), family = poisson(link = "log"), data = t1_sum ) #%>% filter(iyd < 20000)
-summary(m1)
-
-m2 <- glmer(absDFP ~ scale(iyd) + (1|id_yr) + (1|AID) + (1|Year), family = poisson(link = "log"), data = t2_sum) #%>% filter(iyd < 20000)
-summary(m2)
-
-m3 <- glmer(absDFP ~ scale(iyd) + (1|id_yr) + (1|AID) + (1|Year), family = poisson(link = "log"), data = t3_sum) #%>% filter(iyd < 20000)
-summary(m3)
-
-plot(DHARMa::simulateResiduals(m1))
-plot(DHARMa::simulateResiduals(m2))
-plot(DHARMa::simulateResiduals(m3))
-
-#rely on trigamma for poisson, needs a log link function
-r.squaredGLMM(m1)
-r.squaredGLMM(m2)
-r.squaredGLMM(m3)
+t1_sum <- t1 %>% group_by(stop.n.c) %>% summarise(absDFP = round(mean(absDFP),0), DFP = round(mean(DFP),0), TimeStopped = unique(TimeStopped), id_yr = unique(id_yr), AID = unique(AID), Year = unique(Year), iyd = unique(iyd_1), dev = unique(dev_1), cumdev = unique(cumulDev), km = mean(km_mark))
 
 
-newdata <- data.frame(absDFP = seq(min(na.omit(t1_sum$absDFP)), max(na.omit(t1_sum$absDFP)), length = 50), iyd = seq(min(na.omit(t1_sum$iyd)), max(na.omit(t1_sum$iyd)), length = 50), id_yr = "108_2018", AID = "108", Year = 2016)
+t2_sum <- t2 %>% group_by(stop.n.c) %>% summarise(absDFP = round(mean(absDFP),0), DFP = round(mean(DFP),0), TimeStopped = unique(TimeStopped), id_yr = unique(id_yr), AID = unique(AID), Year = unique(Year), iyd = unique(iyd_2), dev = unique(dev_2), cumdev = unique(cumulDev), km = mean(km_mark))
 
- p1 <- PredictGLMER(m1, newdata, se.fit = T, seMultiplier = 1.96)
- p2 <- PredictGLMER(m2, newdata, se.fit = T, seMultiplier = 1.96)
- p3 <- PredictGLMER(m3, newdata, se.fit = T, seMultiplier = 1.96)
+
+t3_sum <- t3 %>% group_by(stop.n.c) %>% summarise(absDFP = round(mean(absDFP),0), DFP = round(mean(DFP),0), TimeStopped = unique(TimeStopped), id_yr = unique(id_yr), AID = unique(AID), Year = unique(Year), iyd = unique(iyd_3), dev = unique(dev_3), cumdev = unique(cumulDev), km = mean(km_mark))
+
+
+compensation <- data2 %>% mutate(DFP = JDate - MaxIRGday, absDFP = abs(DFP)) %>% arrange(id_yr, POSIXct) %>% group_by(id_yr) %>% summarise(fDFP = first(DFP), lDFP = last(DFP), start =first(JDate), end = last(JDate), Comp = (last(DFP) - first(DFP)), CompAbs = (last(absDFP) - first(absDFP))) %>% st_drop_geometry()
 
 
 
+t1_sum <- t1_sum %>% left_join(compensation, by = "id_yr")
+t2_sum <- t2_sum %>% left_join(compensation, by = "id_yr")
+t3_sum <- t3_sum %>% left_join(compensation, by = "id_yr")
 
-plot1 <- ggplot() + geom_ribbon(data = cbind(p1, newdata), aes(x = iyd, ymin = exp(yminus), ymax = exp(yplus)), fill = "#008B8B", alpha = .75) + geom_line(data = cbind(p1, newdata), aes(x = iyd, y=exp(y)), color = "black") + theme_classic() + labs(y = "|Days from Peak Green-up|", x = bquote('Inter-year Distance'~(Fidelity ^-1))) + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 13,color = "grey18"),axis.text.y = element_text(size = 13,color = "grey18"),legend.text = element_text(size = 16,color = "grey18")) + coord_cartesian(xlim = c(0,50000), ylim = c(20,40)) 
-
-plot2 <- ggplot() + geom_ribbon(data = cbind(p2, newdata), aes(x = iyd, ymin = exp(yminus), ymax = exp(yplus)), fill = "#008B8B", alpha = .3) + geom_line(data = cbind(p2, newdata), aes(x = iyd, y=exp(y)), color = "black") + theme_classic() + labs(y = "|Days from Peak Green-up|", x = bquote('Inter-year Distance'~(Fidelity ^-1))) + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 13,color = "grey18"),axis.text.y = element_text(size = 13,color = "grey18"),legend.text = element_text(size = 16,color = "grey18"))+ coord_cartesian(xlim = c(0,50000), ylim = c(20,40))
-
-plot3<- ggplot() + geom_ribbon(data = cbind(p3, newdata), aes(x = iyd, ymin = exp(yminus), ymax = exp(yplus)), fill = "#008B8B", alpha = .1) + geom_line(data = cbind(p3, newdata), aes(x = iyd, y=exp(y)), color = "black") + theme_classic() + labs(y = "|Days from Peak Green-up|", x = bquote('Inter-year Distance'~(Fidelity ^-1))) + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 13,color = "grey18"),axis.text.y = element_text(size = 13,color = "grey18"),legend.text = element_text(size = 16,color = "grey18"))+ coord_cartesian(xlim = c(0,50000), ylim = c(20,40))
-
-plot1 + plot2 + plot3
-
-
-#ggsave(filename = "Figures/ResponseToCumulativeIYD.svg", width = 24, height = 24, units = "cm", dpi = 600)
-ggsave(filename = "Figures/ResponseToIYD_high_20230503.jpg", width = 34, height = 24, units = "cm", dpi = 600)
+t1_sum_timing <- t1_sum %>% filter(Year != 2015) %>% group_by(Year) %>% mutate(timing.c = cut(start, breaks = quantile(start, c(0,.25,.75,1.00)),include.lowest = TRUE, labels = FALSE))
+t2_sum_timing <- t2_sum %>% filter(Year != 2015) %>% group_by(Year) %>% mutate(timing.c = cut(start, breaks = quantile(start, c(0,.25,.75,1.00)),include.lowest = TRUE, labels = FALSE))
+t3_sum_timing <- t3_sum %>% filter(!Year %in% c(2015)) %>% group_by(Year) %>% mutate(timing.c = cut(start, breaks = quantile(start, c(0,.25,.75,1.00)),include.lowest = TRUE, labels = FALSE))
 
 
-
-#now DFP
-m1 <- glmer(DFP ~ scale(iyd) + (1|id_yr) + (1|AID) + (1|Year), data = t1_sum ) #%>% filter(iyd < 20000)
-summary(m1)
-
-m2 <- glmer(DFP ~ scale(iyd) + (1|id_yr) + (1|AID) + (1|Year), data = t2_sum) #%>% filter(iyd < 20000)
-summary(m2)
-
-m3 <- glmer(DFP ~ scale(iyd) + (1|id_yr) + (1|AID) + (1|Year), data = t3_sum) #%>% filter(iyd < 20000)
-summary(m3)
+#-----------------------------------#
+# ability to compensate ####
 
 
-r.squaredGLMM(m1)
-r.squaredGLMM(m2)
-r.squaredGLMM(m3)
-
-# test relationship between timestopped and absDFP
+mod1 <- mgcv::gamm(DFP ~ s(dev, by = factor(timing.c), bs = "cs", k = 5), method = "REML", random = list(id_yr=~1, Year = ~1, AID=~1), data = t1_sum_timing)
 
 
-newdata <- data.frame(DFP = seq(min(na.omit(t1_sum$DFP)), max(na.omit(t1_sum$DFP)), length = 50), iyd = seq(min(na.omit(t1_sum$iyd)), max(na.omit(t1_sum$iyd)), length = 50), id_yr = "108_2018", AID = "108", Year = 2016)
+k1 <- t1_sum_timing %>% group_by(id_yr) %>% summarise(Comp = unique(Comp), cumdev = max(cumdev), timing.c = unique(timing.c), Year = unique(Year), AID = unique(AID))
+mod1 <- mgcv::gamm(Comp ~ s(cumdev, by = factor(timing.c), bs = "cs", k = 5), method = "REML", random = list(Year = ~1, AID=~1), data = k1)
+plot(mod1$gam)
+summary(mod1$gam)
 
-p1 <- PredictGLMER(m1, newdata, se.fit = T, seMultiplier = 1.96)
-p2 <- PredictGLMER(m2, newdata, se.fit = T, seMultiplier = 1.96)
-p3 <- PredictGLMER(m3, newdata, se.fit = T, seMultiplier = 1.96)
+newdata = data.frame(expand.grid(cumdev = seq(min(k1$cumdev, na.rm = T), max(k1$cumdev, na.rm = T), length = 100), timing.c = c(1,2,3), AID = "108", Year = 2017))
+predcumdev <- gammit::predict_gamm(mod1$gam , newdata = newdata, se = T)
 
-
-
-
-plot1 <- ggplot() + geom_ribbon(data = cbind(p1, newdata), aes(x = iyd, ymin = yminus, ymax = yplus), fill = "#008B8B", alpha = .75) + geom_line(data = cbind(p1, newdata), aes(x = iyd, y=y), color = "black") + theme_classic() + labs(y = "Days from Peak Green-up", x = bquote('Inter-year Distance'~(Fidelity ^-1))) + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 13,color = "grey18"),axis.text.y = element_text(size = 13,color = "grey18"),legend.text = element_text(size = 16,color = "grey18")) + coord_cartesian(xlim = c(0,50000), ylim = c(15,45)) 
-
-plot2 <- ggplot() + geom_ribbon(data = cbind(p2, newdata), aes(x = iyd, ymin = (yminus), ymax = (yplus)), fill = "#008B8B", alpha = .3) + geom_line(data = cbind(p2, newdata), aes(x = iyd, y=(y)), color = "black") + theme_classic() + labs(y = "Days from Peak Green-up", x = bquote('Inter-year Distance'~(Fidelity ^-1))) + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 13,color = "grey18"),axis.text.y = element_text(size = 13,color = "grey18"),legend.text = element_text(size = 16,color = "grey18"))+ coord_cartesian(xlim = c(0,50000), ylim = c(15,45))
+ggplot(cbind(newdata, predcumdev)) + geom_line(aes(x = cumdev, y = prediction, color = factor(timing.c), group = factor(timing.c))) + geom_ribbon(aes(x = cumdev, ymin = prediction - se, ymax = prediction + se, group = factor(timing.c)), color = "grey60", alpha = .2) + theme_classic()
 
 
-plot1 + plot2 + plot3
+mod.adap.1 <- mgcv::gamm(absDFP ~ s(dev, bs = "cs", by = factor(timing.c), k = 5), random = list(id_yr = ~1, Year = ~1, AID=~1), family = poisson(link = "log"), data = t1_sum_timing)
 
-ggsave(filename = "Figures/ResponseToIYD_high_DFP_20230503.jpg", width = 34, height = 24, units = "cm", dpi = 600)
+summary(mod.adap.1)
 
+newdata1 = data.frame(expand.grid(dev = seq(min(t1_sum_timing$dev, na.rm = T), max(t1_sum_timing$dev, na.rm = T), length = 100), timing.c = c(1,2,3), AID = "108", Year = 2017))
+preddev <- gammit::predict_gamm(mod.adap.1$gam , newdata = newdata1, se = T)
 
-#---------------------------------#
-# summary stats ####
+ggplot(cbind(newdata1, preddev)) + geom_line(aes(x = dev, y = prediction, color = factor(timing.c), group = factor(timing.c)), size = 1.5) + geom_ribbon(aes(x = dev, ymin = prediction - se, ymax = prediction + se, group = factor(timing.c)), color = "grey60", alpha = .2) + theme_classic()
 
-summary(t1_sum$iyd/1000)
-summary(t2_sum$iyd/1000)
-summary(t3_sum$iyd/1000)
-
-
-
-ggplot() + geom_density(data = t1_sum, aes(x = iyd/1000), bounds = c(0, 250), fill = "blue", alpha = .2) + geom_density(data = t2_sum, aes(x = iyd/1000), bounds = c(0, 250), fill = "red", alpha = .2) + geom_density(data = t3_sum, aes(x = iyd/1000), bounds = c(0, 250), fill = "green", alpha = .2) + coord_cartesian(xlim = c(-2,20)) + scale_x_continuous(limits = c(0,22))
+# 
+# #lmer of relationship
+# #average per stop, and what about including timestopped?
+# 
+# m1 <- glmer(absDFP ~ scale(iyd) + (1|id_yr) + (1|AID) + (1|Year), family = poisson(link = "log"), data = t1_sum ) #%>% filter(iyd < 20000)
+# summary(m1)
+# 
+# m2 <- glmer(absDFP ~ scale(iyd) + (1|id_yr) + (1|AID) + (1|Year), family = poisson(link = "log"), data = t2_sum) #%>% filter(iyd < 20000)
+# summary(m2)
+# 
+# m3 <- glmer(absDFP ~ scale(iyd) + (1|id_yr) + (1|AID) + (1|Year), family = poisson(link = "log"), data = t3_sum) #%>% filter(iyd < 20000)
+# summary(m3)
+# 
+# plot(DHARMa::simulateResiduals(m1))
+# plot(DHARMa::simulateResiduals(m2))
+# plot(DHARMa::simulateResiduals(m3))
+# 
+# #rely on trigamma for poisson, needs a log link function
+# r.squaredGLMM(m1)
+# r.squaredGLMM(m2)
+# r.squaredGLMM(m3)
+# 
+# 
+# newdata <- data.frame(absDFP = seq(min(na.omit(t1_sum$absDFP)), max(na.omit(t1_sum$absDFP)), length = 50), iyd = seq(min(na.omit(t1_sum$iyd)), max(na.omit(t1_sum$iyd)), length = 50), id_yr = "108_2018", AID = "108", Year = 2016)
+# 
+#  p1 <- PredictGLMER(m1, newdata, se.fit = T, seMultiplier = 1.96)
+#  p2 <- PredictGLMER(m2, newdata, se.fit = T, seMultiplier = 1.96)
+#  p3 <- PredictGLMER(m3, newdata, se.fit = T, seMultiplier = 1.96)
+# 
+# 
+# 
+# 
+# plot1 <- ggplot() + geom_ribbon(data = cbind(p1, newdata), aes(x = iyd, ymin = exp(yminus), ymax = exp(yplus)), fill = "#008B8B", alpha = .75) + geom_line(data = cbind(p1, newdata), aes(x = iyd, y=exp(y)), color = "black") + theme_classic() + labs(y = "|Days from Peak Green-up|", x = bquote('Inter-year Distance'~(Fidelity ^-1))) + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 13,color = "grey18"),axis.text.y = element_text(size = 13,color = "grey18"),legend.text = element_text(size = 16,color = "grey18")) + coord_cartesian(xlim = c(0,50000), ylim = c(20,40)) 
+# 
+# plot2 <- ggplot() + geom_ribbon(data = cbind(p2, newdata), aes(x = iyd, ymin = exp(yminus), ymax = exp(yplus)), fill = "#008B8B", alpha = .3) + geom_line(data = cbind(p2, newdata), aes(x = iyd, y=exp(y)), color = "black") + theme_classic() + labs(y = "|Days from Peak Green-up|", x = bquote('Inter-year Distance'~(Fidelity ^-1))) + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 13,color = "grey18"),axis.text.y = element_text(size = 13,color = "grey18"),legend.text = element_text(size = 16,color = "grey18"))+ coord_cartesian(xlim = c(0,50000), ylim = c(20,40))
+# 
+# plot3<- ggplot() + geom_ribbon(data = cbind(p3, newdata), aes(x = iyd, ymin = exp(yminus), ymax = exp(yplus)), fill = "#008B8B", alpha = .1) + geom_line(data = cbind(p3, newdata), aes(x = iyd, y=exp(y)), color = "black") + theme_classic() + labs(y = "|Days from Peak Green-up|", x = bquote('Inter-year Distance'~(Fidelity ^-1))) + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 13,color = "grey18"),axis.text.y = element_text(size = 13,color = "grey18"),legend.text = element_text(size = 16,color = "grey18"))+ coord_cartesian(xlim = c(0,50000), ylim = c(20,40))
+# 
+# plot1 + plot2 + plot3
+# 
+# 
+# #ggsave(filename = "Figures/ResponseToCumulativeIYD.svg", width = 24, height = 24, units = "cm", dpi = 600)
+# ggsave(filename = "Figures/ResponseToIYD_high_20230503.jpg", width = 34, height = 24, units = "cm", dpi = 600)
+# 
+# 
+# 
+# #now DFP
+# m1 <- glmer(DFP ~ scale(iyd) + (1|id_yr) + (1|AID) + (1|Year), data = t1_sum ) #%>% filter(iyd < 20000)
+# summary(m1)
+# 
+# m2 <- glmer(DFP ~ scale(iyd) + (1|id_yr) + (1|AID) + (1|Year), data = t2_sum) #%>% filter(iyd < 20000)
+# summary(m2)
+# 
+# m3 <- glmer(DFP ~ scale(iyd) + (1|id_yr) + (1|AID) + (1|Year), data = t3_sum) #%>% filter(iyd < 20000)
+# summary(m3)
+# 
+# 
+# r.squaredGLMM(m1)
+# r.squaredGLMM(m2)
+# r.squaredGLMM(m3)
+# 
+# # test relationship between timestopped and absDFP
+# 
+# 
+# newdata <- data.frame(DFP = seq(min(na.omit(t1_sum$DFP)), max(na.omit(t1_sum$DFP)), length = 50), iyd = seq(min(na.omit(t1_sum$iyd)), max(na.omit(t1_sum$iyd)), length = 50), id_yr = "108_2018", AID = "108", Year = 2016)
+# 
+# p1 <- PredictGLMER(m1, newdata, se.fit = T, seMultiplier = 1.96)
+# p2 <- PredictGLMER(m2, newdata, se.fit = T, seMultiplier = 1.96)
+# p3 <- PredictGLMER(m3, newdata, se.fit = T, seMultiplier = 1.96)
+# 
+# 
+# 
+# 
+# plot1 <- ggplot() + geom_ribbon(data = cbind(p1, newdata), aes(x = iyd, ymin = yminus, ymax = yplus), fill = "#008B8B", alpha = .75) + geom_line(data = cbind(p1, newdata), aes(x = iyd, y=y), color = "black") + theme_classic() + labs(y = "Days from Peak Green-up", x = bquote('Inter-year Distance'~(Fidelity ^-1))) + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 13,color = "grey18"),axis.text.y = element_text(size = 13,color = "grey18"),legend.text = element_text(size = 16,color = "grey18")) + coord_cartesian(xlim = c(0,50000), ylim = c(15,45)) 
+# 
+# plot2 <- ggplot() + geom_ribbon(data = cbind(p2, newdata), aes(x = iyd, ymin = (yminus), ymax = (yplus)), fill = "#008B8B", alpha = .3) + geom_line(data = cbind(p2, newdata), aes(x = iyd, y=(y)), color = "black") + theme_classic() + labs(y = "Days from Peak Green-up", x = bquote('Inter-year Distance'~(Fidelity ^-1))) + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 13,color = "grey18"),axis.text.y = element_text(size = 13,color = "grey18"),legend.text = element_text(size = 16,color = "grey18"))+ coord_cartesian(xlim = c(0,50000), ylim = c(15,45))
+# 
+# 
+# plot1 + plot2 + plot3
+# 
+# ggsave(filename = "Figures/ResponseToIYD_high_DFP_20230503.jpg", width = 34, height = 24, units = "cm", dpi = 600)
+# 
+# 
+# #---------------------------------#
+# # summary stats ####
+# 
+# summary(t1_sum$iyd/1000)
+# summary(t2_sum$iyd/1000)
+# summary(t3_sum$iyd/1000)
+# 
+# 
+# 
+# ggplot() + geom_density(data = t1_sum, aes(x = iyd/1000), bounds = c(0, 250), fill = "blue", alpha = .2) + geom_density(data = t2_sum, aes(x = iyd/1000), bounds = c(0, 250), fill = "red", alpha = .2) + geom_density(data = t3_sum, aes(x = iyd/1000), bounds = c(0, 250), fill = "green", alpha = .2) + coord_cartesian(xlim = c(-2,20)) + scale_x_continuous(limits = c(0,22))
 
 
 #---------------------------------#
@@ -300,7 +352,7 @@ new <- rbind(newdata1, newdata2, newdata3)
 
 ggplot(new) + geom_ribbon(aes(x = iyd/1000, ymax = exp(prediction) + exp(se), ymin = exp(prediction) - exp(se), group = factor(Year)), fill = "#008B8B", alpha = .33) + geom_line(aes(x = iyd/1000, y = exp(prediction), linetype = factor(Year)), size = .8) + labs(y = "|Days from Peak Green-up|", x = bquote('Inter-year Distance (km)'~( Fidelity ^-1)), linetype = "") + theme_classic()  + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 13,color = "grey18"),axis.text.y = element_text(size = 13,color = "grey18"),legend.text = element_text(size = 16,color = "grey18")) + scale_linetype_manual(values = c("solid", "dashed", "dotted"), label = c("t-1", "t-2", "t-3")) + coord_cartesian(ylim = c(15,45), xlim = c(0,15)) + scale_y_continuous(limits= c(14.8,50.2), breaks = seq(15,50,5)) + scale_x_continuous(limits= c(0,15), breaks = seq(0,15,3))
  
-ggsave(filename = "Figures/ResponseToIYD_gam_absDFP_20230508.jpg", width = 30, height = 30, units = "cm", dpi = 600)
+ggsave(filename = "Figures/ResponseToIYD_gam_absDFP_20230511.jpg", width = 30, height = 30, units = "cm", dpi = 600)
 
 
 
@@ -622,7 +674,7 @@ ggsave(filename = "Figures/GreenscapeMetricsByAvg_20230511.jpg", width = 48, hei
 #--------------------------------#
 # what does high Morrison mean ####
 
-stoploc <- hifid1 %>% mutate(stop.n.c = stop.n_1, km_mark = km_mark_1, TimeStopped = TimeStopped_1, Year = curr_Y) %>% group_by(stop.n.c) %>% mutate(km = round(mean(km_mark),0)) %>% select(id_yr, stop.n.c, km, TimeStopped, Year, prev_Y_1) %>% group_by(stop.n.c) %>% slice(1) %>% st_drop_geometry()
+stoploc <- fid1 %>% mutate(stop.n.c = stop.n_1, km_mark = km_mark_1, TimeStopped = TimeStopped_1, Year = curr_Y) %>% group_by(stop.n.c) %>% mutate(km = round(mean(km_mark),0)) %>% select(id_yr, stop.n.c, km, TimeStopped, Year, prev_Y_1) %>% group_by(stop.n.c) %>% slice(1) %>% st_drop_geometry()
 
 head(stoploc)
 
@@ -748,9 +800,9 @@ predict <- predict_gamm(mod.km_fid, newdata, se = T); predict
 
 intercept <- predict_gamm(mod.km_fid, newdata = data.frame(expand.grid(km = seq(0,240,1), fY = unique(t123$fY)[1], fA = unique(t123$fA), fI = unique(t123$fI)[1])), re_form = "s(fA)", se = F)
 
-ggplot(cbind(newdata, predict)) + geom_ribbon(aes(x = km, ymin = exp(prediction-se), ymax = exp(prediction+se)), fill = "grey45", alpha = .2)+ geom_line(aes(x = km, y = exp(prediction)), color = "#008B8B", linewidth = 1.3) + theme_classic() + labs(x = "Position en-route (km)", y = "Fidelity to Previous Stops (1-3 yrs)") + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 13,color = "grey18"),axis.text.y = element_text(size = 13,color = "grey18"),legend.text = element_text(size = 16,color = "grey18")) + geom_text(label = 'edf=3.997, p<0.001', x = 200, y = 11500, size = 10, family = "serif") + scale_x_continuous(expand = c(0,0), limits = c(0,242), breaks = seq(0,240,40)) + scale_y_continuous(expand = c(0,0), limits = c(0,12500), breaks = seq(0,12500,2500))
+ggplot(cbind(newdata, predict)) + geom_ribbon(aes(x = km, ymin = exp(prediction-se), ymax = exp(prediction+se)), fill = "grey45", alpha = .2)+ geom_line(aes(x = km, y = exp(prediction)), color = "#008B8B", linewidth = 1.3) + theme_classic() + labs(x = "Route Distance (km)", y = "Fidelity to Previous Stops") + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 13,color = "grey18"),axis.text.y = element_text(size = 13,color = "grey18"),legend.text = element_text(size = 16,color = "grey18")) + geom_text(label = 'edf=3.993, p<0.001', x = 200, y = 16500, size = 10, family = "serif") + coord_cartesian(xlim = c(0,244) ,ylim = c(0,17500)) +  scale_x_continuous(expand = c(0,0), limits = c(-20,252), breaks = seq(0,240,40)) + scale_y_continuous(expand = c(0,0), limits = c(0,19000), breaks = seq(0,17500,2500))
 
-ggsave(filename = "Figures/IYDAlongRoute_20230509.jpg", width = 34, height = 24, units = "cm", dpi = 600)
+ggsave(filename = "Figures/IYDAlongRoute_20230511.jpg", width = 34, height = 24, units = "cm", dpi = 600)
 
 
 ggplot(cbind(newdata, intercept)) + geom_point(aes(x = 1, y = prediction, group = fA, color = fA))
