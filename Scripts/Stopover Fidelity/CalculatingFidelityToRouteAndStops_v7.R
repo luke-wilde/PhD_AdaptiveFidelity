@@ -740,6 +740,20 @@ dev + skip + plot_layout(nrow = 2)
 setwd("C:/Users/lwilde2/Documents/PhD_AdaptiveFidelity")
 ggsave(filename = "Figures/VariationInFidelityAndDeviations_20230513_2.jpg", width = 46, height = 28, units = "cm", dpi = 600)
 
+
+
+l <- stfid1 %>% drop_na(iyd_1) %>% group_by(id_yr) %>% summarise(meanIYD = mean(iyd_1, na.rm = T)) %>% arrange(meanIYD)
+
+x <- datalines %>% filter(id_yr %in% c("254_2019", "254_2018"))
+x1 <- onhigh_yr_fin %>% filter(id_yr %in% c("254_2019", "254_2018"))
+x1 <- x1 %>% group_by(id_yr, stop.n.c) %>% summarise() %>% st_convex_hull()
+mapview(x, zcol = "id_yr") + mapview(x1, zcol = "id_yr")
+
+st_write(x1, dsn = "GRC Poster/Shp/Deer108_2022t2021.shp")
+
+
+## BELOW NOT RUN ##
+
 #--------------------------------------------#
 # Morrison Fidelity -- Mean Fidelity ####
 

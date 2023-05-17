@@ -114,6 +114,16 @@ fid5 <- IYD_stop_fidelity_list[[5]]
 fid6 <- IYD_stop_fidelity_list[[6]]
 fid7 <- IYD_stop_fidelity_list[[7]]
 
+#time window
+fid1 <- fid1 %>% filter((startJul_1 - startJul_prev_1) < 30)
+fid2 <- fid2 %>% filter((startJul_2 - startJul_prev_2) < 30)
+fid3 <- fid3 %>% filter((startJul_3 - startJul_prev_3) < 30)
+fid4 <- fid4 %>% filter((startJul_4 - startJul_prev_4) < 30)
+fid5 <- fid5 %>% filter((startJul_5 - startJul_prev_5) < 30)
+fid6 <- fid6 %>% filter((startJul_6 - startJul_prev_6) < 30)
+fid7 <- fid7 %>% filter((startJul_7 - startJul_prev_7) < 30)
+
+
 #greenscape data
 RDH_14t22_greenscapes
 #stops
@@ -139,11 +149,17 @@ fid3 <- fid3 %>% arrange(id_yr, km_mark_3) %>% group_by(id_yr) %>% mutate(StopNu
 fid1 <- fid1 %>% filter(!AID.1 %in% remove$AID)
 fid2 <- fid2 %>% filter(!AID.2 %in% remove$AID)
 fid3 <- fid3 %>% filter(!AID.3 %in% remove$AID)
-
+fid4 <- fid4 %>% filter(!AID.4 %in% remove$AID)
+fid5 <- fid5 %>% filter(!AID.5 %in% remove$AID)
+fid6 <- fid6 %>% filter(!AID.6 %in% remove$AID)
 
 length(unique(fid1$AID.1)); length(unique(fid1$id_yr))
 length(unique(fid2$AID.2)); length(unique(fid2$id_yr))
 length(unique(fid3$AID.3)); length(unique(fid3$id_yr))
+length(unique(fid4$AID.4)); length(unique(fid4$id_yr))
+length(unique(fid5$AID.5)); length(unique(fid5$id_yr))
+length(unique(fid6$AID.6)); length(unique(fid6$id_yr))
+length(unique(fid7$AID.7)); length(unique(fid7$id_yr))
 
 #adaptability of fidelity?
 #absDFP ~ greenscape * IYD
@@ -153,6 +169,8 @@ length(unique(fid3$AID.3)); length(unique(fid3$id_yr))
 #landscape
 #response to mismatch
 
+length(Reduce(unique, list(unique(fid1$AID.1), unique(fid2$AID.2), unique(fid3$AID.3), unique(fid4$AID.4), unique(fid5$AID.5))))
+length(Reduce(unique, list(unique(fid1$id_yr), unique(fid2$id_yr), unique(fid3$id_yr), unique(fid4$id_yr), unique(fid5$id_yr))))
 
 #-------------------------------#
 # consistency in fidelity ####
@@ -242,6 +260,83 @@ t3_sum_timing <- t3_sum %>% filter(!Year %in% c(2015)) %>% group_by(Year) %>% mu
 #-----------------------------------#
 # ability to compensate ####
 
+t1_comp <- t1_sum_timing %>% st_drop_geometry() 
+t2_comp <- t2_sum_timing %>% ungroup() %>% st_drop_geometry() %>% rename(iyd2 = iyd, dev2 = dev) %>% select(iyd2, dev2, stop.n.c, TimeStopped)
+t3_comp <- t3_sum_timing %>% ungroup() %>% st_drop_geometry() %>% rename(iyd3 = iyd, dev3 = dev) %>% select(iyd3, dev3, stop.n.c, TimeStopped)
+
+t_all_comp <- t1_comp %>% left_join(t2_comp, by = "stop.n.c") %>% left_join(t3_comp, by = "stop.n.c")
+
+t_all_comp$meanIYD <- rowMeans(t_all_comp[c("iyd", "iyd2", "iyd3")], na.rm = T)
+t_all_comp$meanDev <- rowMeans(t_all_comp[c("dev", "dev2", "dev3")], na.rm = T)
+
+#t_all_comp <- t_all_comp %>% drop_na(meanIYD, meanDev)
+
+t_all_comp_sum <- t_all_comp %>% ungroup() %>% group_by(id_yr) %>% dplyr::summarise(AID = unique(AID), Year = unique(Year), sumIYD = sum(meanIYD, na.rm = T), meanIYD = mean(meanIYD), dev = mean(dev), meanDev = mean(meanDev), cumdev = max(cumdev)/(sum(TimeStopped)/24), Comp= unique(Comp), CompAbs = unique(CompAbs), timing.c = unique(timing.c)) %>% mutate(fComp = ifelse(timing.c > 1, ifelse(Comp < 0,1,0), ifelse(Comp < 0,0,1))); t_all_comp_sum
+
+
+
+compdata <- read.csv("C:/Users/lwilde2/Documents/PhD_AdaptiveFidelity/Data_out/Data/Compensation/AOrtega_RDHDeerCompensationStatus.csv")
+
+t_all_comp_sumx <- t_all_comp_sum %>% left_join(compdata, by = "id_yr") %>% drop_na(CompFact)
+
+table(t_all_comp_sumx$CompFact)
+
+modbinom <- mgcv::gamm(CompFact ~ s(meanDev, by = factor(timing.c), bs = "cs", k = 10), list(Year = ~1, AID = ~1), family = binomial(link = "cloglog"), data = t_all_comp_sumx)
+summary(modbinom$gam)
+
+
+# moddegree <- mgcv::gamm(Comp ~ s(meanDev, by = factor(timing.c), bs = "cs", k = 5), list(Year = ~1, AID = ~1), data = t_all_comp %>% filter(km > 50 & km < 210))
+# summary(moddegree$gam)
+
+ggplot(t_all_comp) + geom_point(aes(x = km, y = dev, size = log(absDFP), color = factor(timing.c))) + geom_line(aes(x = km, y = dev, group = factor(id_yr), color = factor(timing.c))) + coord_cartesian(xlim = c(50,200))
+
+
+
+newdata = data.frame(expand.grid(meanDev = seq(min(t_all_comp_sum$meanDev, na.rm = T), max(t_all_comp_sum$meanDev, na.rm = T), length = 100), timing.c = c(1,2,3), AID = 108, Year = 2019))
+predcumdev <- gammit::predict_gamm(modbinom$gam , newdata = newdata, se = T)
+
+clog.inv <- function(values){
+  e1<- (-1)*(exp(values))
+  1-exp(e1)
+}
+
+predcumdev$prediction <- clog.inv(predcumdev$prediction)
+predcumdev$se <- clog.inv(predcumdev$se)/3
+
+ggplot(cbind(newdata, predcumdev)) + geom_line(aes(x = meanDev, y = prediction, color = factor(timing.c), group = factor(timing.c)), size = 1.2) + geom_ribbon(aes(x = meanDev, ymin = (prediction - se), ymax = (prediction + se), group = factor(timing.c)), color = "grey60", alpha = .2) + coord_cartesian(xlim = c(0,4000), ylim = c(0,1)) + scale_x_continuous(expand = c(0,0), limits = c(0,4000), breaks = seq(0,8000,500)) + scale_y_continuous(expand = c(0,0), limits = c(-.5,1.5), breaks = seq(0,1,.2)) + theme_classic()
+
+
+
+modIYDmismatch <- mgcv::gamm(absDFP ~ s(meanIYD, by = factor(timing.c), bs = "cs", k = 5), list(id_yr = ~1, Year = ~1, AID = ~1), data=t_all_comp, family = poisson(link = "log"))
+summary(modIYDmismatch$gam)
+
+newdata = data.frame(expand.grid(meanIYD = seq(min(t_all_comp$meanIYD, na.rm = T), max(t_all_comp$meanIYD, na.rm = T), length = 100), timing.c = c(1,2,3), AID = 108, Year = 2019, id_yr = "108_2019"))
+predIYDmis <- gammit::predict_gamm(modIYDmismatch$gam , newdata = newdata, se = T)
+
+ggplot(cbind(newdata, predIYDmis)) + geom_line(aes(x = meanIYD, y = exp(prediction), color = factor(timing.c), group = factor(timing.c)), size = 1.2) + geom_ribbon(aes(x = meanIYD, ymin = exp(prediction - se), ymax = exp(prediction + se), group = factor(timing.c)), color = "grey60", alpha = .2) + coord_cartesian(xlim = c(0,4000), ylim = c(-25,150)) + scale_x_continuous(expand = c(0,0), limits = c(0,4100), breaks = seq(0,4000,500)) + scale_y_continuous(expand = c(0,0), limits = c(-40,160), breaks = seq(-25,150,25)) + theme_classic()
+
+
+# 
+# modbinomIYD <- mgcv::gamm(Comp ~ s(sumDev, by = factor(timing.c), bs = "cs", k = 5), list(Year = ~1, AID = ~1), data = t_all_comp_sum)
+# summary(modbinomIYD$gam)
+# 
+# newdata = data.frame(expand.grid(sumDev = seq(min(t_all_comp_sum$sumDev, na.rm = T), max(t_all_comp_sum$sumDev, na.rm = T), length = 100), timing.c = c(1,2,3), AID = 108, Year = 2019))
+# predcumdev <- gammit::predict_gamm(modbinomIYD$gam , newdata = newdata, se = T)
+# 
+# clog.inv <- function(values){
+#   e1<- (-1)*(exp(values))
+#   1-exp(e1)
+# }
+# 
+# predcumdev$prediction <- predcumdev$prediction
+# predcumdev$se <- predcumdev$se
+
+ggplot(cbind(newdata, predcumdev)) + geom_line(aes(x = meanDev, y = prediction, color = factor(timing.c), group = factor(timing.c)), size = 1.2) + geom_ribbon(aes(x = meanDev, ymin = (prediction - se), ymax = (prediction + se), group = factor(timing.c), fill = factor(timing.c)), alpha = .2) + coord_cartesian(xlim = c(0,3000), ylim = c(0,1.05)) + scale_x_continuous(expand = c(0,0), limits = c(0,9100), breaks = seq(0,3000,500)) + scale_y_continuous(expand = c(0,0), limits = c(-.5,15), breaks = seq(0,1,.2)) + theme_classic() + theme(axis.title.x = element_text(size = 40,color = "grey18"), axis.title.y = element_text(size = 40,color = "grey18"),axis.text.x = element_text(size = 30,color = "grey18"),axis.text.y = element_text(size = 30,color = "grey18"), legend.text = element_text(size = 30,color = "grey18"), legend.title = element_text(size = 40,color = "grey18"),legend.key.size = unit(1, 'cm'), legend.key.height = unit(1, 'cm'), legend.key.width = unit(2, 'cm')) + labs(x = "Mean Route Deviation (m)", y = "Probability of Compensation", fill = "Migration Start Date", color = "Migration Start Date") + scale_color_manual(values = c("#4DBBD5FF","#3C5488FF","black"), labels = c("early", "mid", "late")) + scale_fill_manual(values = c("#4DBBD5FF","#3C5488FF","black"), labels = c("early", "mid", "late")) 
+
+
+ggsave(filename = "Figures/ProbabilityOfCompensation_20230517.jpg", width = 40, height = 24, units = "cm", dpi = 600)
+
+comptest
 
 mod1 <- mgcv::gamm(DFP ~ s(dev, by = factor(timing.c), bs = "cs", k = 5), method = "REML", random = list(id_yr=~1, Year = ~1, AID=~1), data = t1_sum_timing)
 
@@ -278,8 +373,10 @@ ggplot(cbind(newdata, predcumdev)) + geom_line(aes(x = cumdev, y = prediction, c
 # ggplot(cbind(newdata, predcumdev)) + geom_line(aes(x = cumdev, y = prediction, color = factor(timing.c), group = factor(timing.c)), size = 1.2) + geom_ribbon(aes(x = cumdev, ymin = (prediction - se), ymax = (prediction + se), group = factor(timing.c)), color = "grey60", alpha = .2) + theme_classic() + labs(x = "Cumulative Deviations (corrected)", y = "Degree of Compensation (Days from Peak Green-up)") + geom_hline(aes(yintercept = 0), linetype = "dashed", size = 1.2) + scale_x_continuous(expand = c(0,0), limits = c(0,8000), breaks = seq(0,8000,2000)) + scale_y_continuous(expand = c(0,0), limits = c(5,100), breaks = c(0,20,40,60,80,100))
 
 
+hist(t_all_comp$meanIYD)
+
 mod.adap.1 <- mgcv::gamm(absDFP ~ s(dev, bs = "cs", k = 5), random = list(id_yr = ~1, Year = ~1, AID=~1), family = poisson(link = "log"), data = t1_sum_timing) #by = factor(timing.c), 
-mod.adap.2 <- mgcv::gamm(absDFP ~ s(iyd, bs = "cs", by = factor(timing.c), k = 5), random = list(id_yr = ~1, Year = ~1, AID=~1), family = poisson(link = "log"), data = t1_sum_timing)
+mod.adap.2 <- mgcv::gamm(absDFP ~ s(meanIYD, bs = "cs", by = factor(timing.c), k = 5), random = list(id_yr = ~1, Year = ~1, AID=~1), family = poisson(link = "log"), data = t_all_comp %>% filter(meanIYD< 40000))
 
 summary(mod.adap.1$gam)
 
@@ -290,12 +387,12 @@ ggplot(cbind(newdata1, preddev)) + geom_line(aes(x = dev/1000, y = exp(predictio
 
 ggsave(filename = "Figures/CatchingWave_Deviation_20230513.jpg", width = 24, height = 24, units = "cm", dpi = 600)
 
-newdata2 = data.frame(expand.grid(iyd = seq(min(t1_sum_timing$iyd, na.rm = T), max(t1_sum_timing$iyd, na.rm = T), length = 100), timing.c = c(1,2,3), AID = "108", Year = 2017))
+newdata2 = data.frame(expand.grid(meanIYD = seq(0, 40000, length = 100), timing.c = c(1,2,3), AID = "108", Year = 2017))
 preddev2 <- gammit::predict_gamm(mod.adap.2$gam , newdata = newdata2, se = T)
 
-ggplot(cbind(newdata2, preddev2)) + geom_line(aes(x = iyd/1000, y = exp(prediction), linetype = factor(timing.c), group = factor(timing.c)), size = 1.5) + geom_ribbon(aes(x = iyd/1000, ymin = exp(prediction - se), ymax = exp(prediction + se), group = factor(timing.c)), fill = "#008B8B", alpha = .53) + labs(y = "|Days from Peak Green-up|", x = bquote('Inter-year Distance (km)'~( Fidelity ^-1)), linetype = "") + theme_classic()  + theme(axis.title.x = element_text(size = 20,color = "grey18"), axis.title.y = element_text(size = 20,color = "grey18"),axis.text.x = element_text(size = 13,color = "grey18"),axis.text.y = element_text(size = 13,color = "grey18"),legend.text = element_text(size = 16,color = "grey18")) + scale_linetype_manual(values = c("solid", "dashed", "dotted"), label = c("Early", "Middle", "Late")) + coord_cartesian(ylim = c(5,61), xlim = c(0,120)) + scale_y_continuous(expand = c(0,0), limits= c(5,60.5), breaks = seq(5,60,5)) + scale_x_continuous(limits= c(0,120), breaks = seq(0,120,30))
+ggplot(cbind(newdata2, preddev2)) + geom_line(aes(x = meanIYD/1000, y = exp(prediction), linetype = factor(timing.c), group = factor(timing.c)), size = 1.5) + geom_ribbon(aes(x = meanIYD/1000, ymin = exp(prediction - se), ymax = exp(prediction + se), group = factor(timing.c)), fill = "#008B8B", alpha = .53) + labs(y = "|Days from Peak Green-up|", x = bquote('Inter-year Distance (km)'~( Fidelity ^-1)), linetype = "") + theme_classic()  + theme(axis.title.x = element_text(size = 40,color = "grey18"), axis.title.y = element_text(size = 40,color = "grey18"),axis.text.x = element_text(size = 30,color = "grey18"),axis.text.y = element_text(size = 30,color = "grey18"),legend.text = element_text(size = 30,color = "grey18"), legend.title = element_text(size = 40,color = "grey18"),legend.key.size = unit(1, 'cm'), legend.key.height = unit(1, 'cm'), legend.key.width = unit(2, 'cm')) + scale_linetype_manual(values = c("solid", "dashed", "dotted"), label = c("Early", "Middle", "Late")) + coord_cartesian(ylim = c(5,61), xlim = c(0,120)) + scale_y_continuous(expand = c(0,0), limits= c(5,60.5), breaks = seq(5,60,5)) + scale_x_continuous(limits= c(0,120), breaks = seq(0,120,30))
 
-ggsave(filename = "Figures/CatchingWave_IYD_20230513.jpg", width = 24, height = 24, units = "cm", dpi = 600)
+ggsave(filename = "Figures/CatchingWave_IYD_20230514.jpg", width = 24, height = 24, units = "cm", dpi = 600)
 
 # 
 # #lmer of relationship
@@ -541,13 +638,22 @@ summary(mod.absDFP3.altx)$dev.expl
 # benefit of deviation ####
 
 devtest <- t1_sum %>% filter(km < 241) #t1 %>% filter(km_mark_1 <= 240) %>% mutate(km = round(km_mark_1, 0)) %>% group_by(id_yr, km) %>% summarise(iyd = mean(iyd_1), mismatch = mean(absDFP) , mis.sign = mean(DFP), AID = unique(AID), Year = unique(Year))
+# devtest <- devtest %>% filter(iyd)
 
-devtest <- devtest %>% drop_na(iyd, dev) %>% ungroup() %>% mutate(fidc = cut(iyd, breaks = quantile(iyd, c(.25,.5,.75,1.00)),include.lowest = TRUE, labels = FALSE), devc = cut(dev, breaks = quantile(iyd, c(.25,.5,.75,1.00)),include.lowest = TRUE, labels = FALSE))
+devtest_sum <- devtest %>% group_by(id_yr) %>% summarise(meanIYD = mean(iyd, na.rm = T))
+
+devtest <- devtest %>% left_join(devtest_sum %>% st_drop_geometry(), by = "id_yr")
+
+devtest <- devtest %>% drop_na(iyd, dev, meanIYD) %>% ungroup() %>% mutate(fidc = cut(meanIYD, breaks = quantile(meanIYD, c(.25,.5,.75,1.00)),include.lowest = TRUE, labels = FALSE), devc = cut(dev, breaks = quantile(iyd, c(.25,.5,.75,1.00)),include.lowest = TRUE, labels = FALSE))
+
+
 
 
 
 mod.flex <- mgcv::gamm(absDFP ~ s(km, by = factor(fidc), bs = "cs", k = 5), method = "GCV", data = devtest, family = quasipoisson, random = list(id_yr=~1, Year = ~1, AID=~1))
-mod.sign.flex <- mgcv::gamm(DFP ~ s(km, by = factor(fidc), bs = "cs", k = 5), method = "REML",data = devtest, random = list(id_yr=~1, Year = ~1, AID=~1))
+
+
+mod.sign.flex <- mgcv::gamm(DFP ~ s(km, by = factor(fidc), bs = "cs", k = 10), method = "REML",data = devtest, random = list(id_yr=~1, Year = ~1, AID=~1))
 
 mod.dev <- mgcv::gamm(absDFP ~ s(km, by = factor(devc), bs = "cs", k = 5), method = "GCV", data = devtest, family = quasipoisson, random = list(id_yr=~1, Year = ~1, AID=~1))
 mod.sign.dev <- mgcv::gamm(DFP ~ s(km, by = factor(devc), bs = "cs", k = 5), method = "REML",data = devtest, random = list(id_yr=~1, Year = ~1, AID=~1))
@@ -569,19 +675,26 @@ preddevvsign <- gammit::predict_gamm(mod.sign.dev$gam , newdata = newdata, se = 
 
 #ggplot(cbind(newdata, predflex)) + geom_ribbon(aes(x = km, ymin = exp(prediction - se), ymax = exp(prediction + se), group = factor(fidc)), fill = "darkcyan", alpha = .33) + geom_line(aes(x = km, y = exp(prediction), group = factor(fidc), linetype = factor(fidc)), linewidth = 1.4, color = "darkcyan") + scale_linetype_manual(values = c("solid", "dashed", "dotted"), labels = c("High", "Moderate", "Low")) + labs(x = "Route Distance (km)", y = "|Days from Peak Green-up|", linetype = "Fidelity") + theme_classic()
 
-ggplot(cbind(newdata, predflexvsign)) + geom_ribbon(aes(x = km, ymin = (prediction - se), ymax = (prediction + se), group = factor(fidc)), fill = "darkcyan", alpha = .33) + geom_line(aes(x = km, y = (prediction), group = factor(fidc), linetype = factor(fidc)), linewidth = 1.4, color = "darkcyan") + scale_linetype_manual(values = c("solid", "dashed", "dotted"), labels = c("High", "Moderate", "Low")) + labs(x = "Route Distance (km)", y = "Days from Peak Green-up", linetype = "Fidelity to Stops") + theme_classic() + theme(axis.title.x = element_text(size = 40,color = "grey18"), axis.title.y = element_text(size = 40,color = "grey18"),axis.text.x = element_text(size = 30,color = "grey18"),axis.text.y = element_text(size = 30,color = "grey18"),legend.text = element_text(size = 30,color = "grey18"), legend.title = element_text(size = 40,color = "grey18"),legend.key.size = unit(1, 'cm'), legend.key.height = unit(1, 'cm'), legend.key.width = unit(2, 'cm')) + coord_cartesian(ylim = c(-20,63), xlim = c(0,240))+ scale_y_continuous(expand = c(0,0), limits = c(-30,65.2), breaks = seq(-20,60,10)) + scale_x_continuous(expand = c(0,0), limits = c(0,255), breaks = seq(0,240,40)) + geom_hline(aes(yintercept = 0), linetype = "dashed", size = 1.2)
+p1 <- ggplot(cbind(newdata, predflexvsign)) + geom_ribbon(aes(x = km, ymin = (prediction - se), ymax = (prediction + se), group = factor(fidc)), fill = "darkcyan", alpha = .33) + geom_line(aes(x = km, y = (prediction), group = factor(fidc), linetype = factor(fidc)), linewidth = 1.4, color = "darkcyan") + scale_linetype_manual(values = c("solid", "dashed", "dotted"), labels = c("High", "Moderate", "Low")) + labs(x = "Distance from Winter Range (km)", y = "Days from Peak Green-up", linetype = "Fidelity Score", title = "") + theme_classic() + theme(axis.title.x = element_text(size = 40,color = "grey18"), axis.title.y = element_text(size = 40,color = "grey18"),axis.text.x = element_text(size = 30,color = "grey18"),axis.text.y = element_text(size = 30,color = "grey18"), legend.text = element_text(size = 30,color = "grey18"), legend.title = element_text(size = 40,color = "grey18"),legend.key.size = unit(1, 'cm'), legend.key.height = unit(1, 'cm'), legend.key.width = unit(2, 'cm')) + coord_cartesian(ylim = c(-20,63), xlim = c(0,250))+ scale_y_continuous(expand = c(0,0), limits = c(-30,65.2), breaks = seq(-20,60,10)) + scale_x_continuous(expand = c(0,0), limits = c(0,260), breaks = seq(0,240,40)) + geom_hline(aes(yintercept = 0), linetype = "dashed", size = 1.2); p1
 
-ggsave(filename = "Figures/OptimalStops_20230513.jpg", width = 35, height = 24, units = "cm", dpi = 600)
+ggsave(filename = "Figures/OptimalStops_20230516.jpg", width = 35, height = 24, units = "cm", dpi = 600)
+
+ggplot(cbind(newdata, predflex)) + geom_ribbon(aes(x = km, ymin = exp(prediction - se), ymax = exp(prediction + se), group = factor(fidc)), fill = "darkcyan", alpha = .33) + geom_line(aes(x = km, y = exp(prediction), group = factor(fidc), linetype = factor(fidc)), linewidth = 1.4, color = "darkcyan") + scale_linetype_manual(values = c("solid", "dashed", "dotted"), labels = c("High", "Moderate", "Low")) + labs(x = "Route Distance (km)", y = "Days from Peak Green-up", linetype = "Fidelity", title = "Stops") + theme_classic()
+
+
 
 
 #ggplot(cbind(newdata, preddev)) + geom_ribbon(aes(x = km, ymin = exp(prediction - se), ymax = exp(prediction + se), group = factor(devc)), fill = "darkcyan", alpha = .33) + geom_line(aes(x = km, y = exp(prediction), group = factor(devc), linetype = factor(devc)), linewidth = 1.4, color = "darkcyan") + scale_linetype_manual(values = c("solid", "dashed", "dotted"), labels = c("High", "Moderate", "Low")) + labs(x = "Route Distance (km)", y = "|Days from Peak Green-up|", linetype = "Fidelity") + theme_classic()
 
-ggplot(cbind(newdata, preddevvsign)) + geom_ribbon(aes(x = km, ymin = (prediction - se), ymax = (prediction + se), group = factor(devc)), fill = "darkcyan", alpha = .33) + geom_line(aes(x = km, y = (prediction), group = factor(devc), linetype = factor(devc)), linewidth = 1.4, color = "darkcyan") + scale_linetype_manual(values = c("solid", "dashed", "dotted"), labels = c("High", "Moderate", "Low")) + labs(x = "Route Distance (km)", y = "Days from Peak Green-up", linetype = "Fidelity to Route") + theme_classic() + theme(axis.title.x = element_text(size = 40,color = "grey18"), axis.title.y = element_text(size = 40,color = "grey18"),axis.text.x = element_text(size = 30,color = "grey18"),axis.text.y = element_text(size = 30,color = "grey18"),legend.text = element_text(size = 30,color = "grey18"), legend.title = element_text(size = 40,color = "grey18"),legend.key.size = unit(2, 'cm'), legend.key.height = unit(1, 'cm'), legend.key.width = unit(2, 'cm')) + coord_cartesian(ylim = c(-20,63), xlim = c(0,240))+ scale_y_continuous(expand = c(0,0), limits = c(-30,65.2), breaks = seq(-20,60,10)) + scale_x_continuous(expand = c(0,0), limits = c(0,255), breaks = seq(0,240,40)) + geom_hline(aes(yintercept = 0), linetype = "dashed", size = 1.2)
+p2 <- ggplot(cbind(newdata, preddevvsign)) + geom_ribbon(aes(x = km, ymin = (prediction - se), ymax = (prediction + se), group = factor(devc)), fill = "darkcyan", alpha = .33) + geom_line(aes(x = km, y = (prediction), group = factor(devc), linetype = factor(devc)), linewidth = 1.4, color = "darkcyan") + scale_linetype_manual(values = c("solid", "dashed", "dotted"), labels = c("High", "Moderate", "Low")) + labs(x = "Route Distance (km)", y = "Days from Peak Green-up", linetype = "Fidelity", title = "Route") + theme_classic() + theme(axis.title.x = element_text(size = 40,color = "grey18"), axis.title.y = element_text(size = 40,color = "grey18"),axis.text.x = element_text(size = 30,color = "grey18"),axis.text.y = element_text(size = 30,color = "grey18"),legend.text = element_text(size = 30,color = "grey18"), legend.title = element_text(size = 40,color = "grey18"),legend.key.size = unit(2, 'cm'), legend.key.height = unit(1, 'cm'), legend.key.width = unit(2, 'cm')) + coord_cartesian(ylim = c(-20,63), xlim = c(0,240))+ scale_y_continuous(expand = c(0,0), limits = c(-30,65.2), breaks = seq(-20,60,10)) + scale_x_continuous(expand = c(0,0), limits = c(0,255), breaks = seq(0,240,40)) + geom_hline(aes(yintercept = 0), linetype = "dashed", size = 1.2)
 
 
 
-ggsave(filename = "Figures/OptimalDeviations_20230513.jpg", width = 35, height = 24, units = "cm", dpi = 600)
+ggsave(filename = "Figures/OptimalDeviations_20230513.jpg", width = 40, height = 30, units = "cm", dpi = 600)
 
+
+
+p1+p2
 
 mod.alt <- mgcv::gam(round(mismatch,0) ~ s(km, by = factor(fidc), bs = "cs", k = 5) + s(factor(devtest$id_yr), bs= "re") + s(factor(devtest$AID), bs = "re") + s(factor(devtest$Year), bs = "re"), method= "REML", data = devtest, family = quasipoisson())
 summary(mod.alt)$dev.expl #random = list(id_yr=~1, Year = ~1, AID=~1)

@@ -96,7 +96,7 @@ for(i in c(2,7,11)){
 }#i
 
 head(f)
-#beep(sound = 1)
+beep(sound = 1)
 showConnections(); sfStop(); showConnections()
 
 
@@ -111,7 +111,19 @@ load("C:/Users/lwilde2/Desktop/RDH Database/Processed Data/RDH_AllMigrations_Bis
 
 Spring.summary <- Spring.summary %>% mutate(Year = year(start), J = yday(start))  %>% drop_na(J)
 
-Spring.sum.c <- Spring.summary %>% filter(Year > 2015) %>% group_by(Year) %>% mutate(cut = cut(J, breaks = quantile(J, c(0,.33,.66,1)),include.lowest = TRUE, labels = FALSE))
+Spring.sum.c <- Spring.summary %>% filter(Year > 2015) %>% group_by(Year) %>% mutate(cut = cut(J, breaks = quantile(J, c(0,.15,.45,1)),include.lowest = TRUE, labels = FALSE))
+
+
+# summary(Spring.summary[which(Spring.summary$Year == 2014),"J"])
+# summary(Spring.summary[which(Spring.summary$Year == 2015),"J"])
+# summary(Spring.summary[which(Spring.summary$Year == 2016),"J"])
+# summary(Spring.summary[which(Spring.summary$Year == 2017),"J"])
+# summary(Spring.summary[which(Spring.summary$Year == 2018),"J"])
+# summary(Spring.summary[which(Spring.summary$Year == 2019),"J"])
+# summary(Spring.summary[which(Spring.summary$Year == 2020),"J"])
+# summary(Spring.summary[which(Spring.summary$Year == 2021),"J"])
+# summary(Spring.summary[which(Spring.summary$Year == 2022),"J"])
+
 
 Spring.sum.c1 <- Spring.summary %>% filter(Year <= 2015) %>% group_by(Year) %>% mutate(cut = cut(J, breaks = quantile(J, c(0,.5,1)),include.lowest = TRUE, labels = FALSE))
 
@@ -120,7 +132,7 @@ sumall <- rbind(Spring.sum.c, Spring.sum.c1)
 Spring.summary[which(is.na(Spring.summary$J)),]      
 
 
-
+sumall %>% group_by(cut) %>% summarise(n = n())
 
 
 
@@ -130,9 +142,32 @@ data <- data %>% ungroup() %>% mutate(DFP_alt = JDate - MaxIRGday_alt, absDFP_al
 datasum <- data %>% group_by(stop.n.c) %>% dplyr::summarise(diffDFP = mean(diffDFP), diffabsDFP = mean(diffabsDFP), diffIRGday = mean(diffIRGday), diffSpring = mean(diffSpring), iyd = mean(iyd),km_mark_1 = unique(km_mark_1), km_prev_1 = unique(km_prev_1), diffIRGsum = sum(IRG_scaled) - sum(IRG_scaled_alt))
 
 
+datasum
+
+datasum <- datasum %>% mutate( AID = str_sub(stop.n.c, 0,3), id_yr = str_sub(stop.n.c, 0,8), Year = str_sub(stop.n.c, 5, 8), stop = as.numeric(str_split(stop.n.c, "_", simplify = TRUE)[,3]))
+
+datasum <- datasum %>% left_join(sumall %>% mutate(Year = as.character(Year)) %>% dplyr::select(id_yr, cut), by="id_yr")
+
+datasum$cut <- ifelse(datasum$cut == 1, "early", ifelse(datasum$cut == 2, "mid", "late"))
+
+datasum %>% group_by(cut) %>% summarise(n = n())
 
 
-
+# ggplot(datasum, aes(x = km_mark_1, y = iyd, group = cut, color = cut)) + geom_point() + geom_smooth(method = "loess") + coord_cartesian(xlim = c(35,240),ylim = c(0,120000))
+# 
+# 
+# datasum[which(datasum$iyd == 0), "iyd"] <- 0.00000001
+# 
+# mod.diffsites <- mgcv::gamm(round(iyd,0) ~ s(km_mark_1, by = factor(cut), bs = "cs", k = 5), random = list(Year.x = ~1, AID = ~1, id_yr = ~1), family = poisson(link = "log"), data = datasum )
+# 
+# summary(mod.diffsites$gam)
+# 
+# library(gammit)
+# 
+# newdata = data.frame(expand.grid(km_mark_1 = seq(0, 240, length = 240), cut = c("early", "mid", "late"), AID = 108, Year.x = 2019, id_yr = "108_2019"))
+# pred.diffsite <- gammit::predict_gamm(mod.diffsites$gam , newdata = newdata, se = T)
+# 
+# ggplot(cbind(newdata, pred.diffsite)) + geom_line(aes(x = km_mark_1, y = exp(prediction), color = cut)) + coord_cartesian(ylim = c(0, 80000))
 
 
 head(datasum)
@@ -147,7 +182,7 @@ summary(datasum$diffkm)
 
 
 
-datasum <- datasum %>% mutate(iyd.signed = iyd * direction, iyd.signed.c = ifelse(iyd.signed > 5000, "skip", ifelse(iyd.signed < -5000, "short", NA)), kmcut = ifelse(km_mark_1 <= 80, "start", ifelse(km_mark_1 > 80 & km_mark_1 < 160, "middle", "end")), status = iyd.signed.c ) #, kmc = ifelse(diffkm < 5, 1, ifelse(diffkm > 5 & diffkm < 10, 2, 3)) + kmc
+datasum <- datasum %>% mutate(iyd.signed = iyd * direction, iyd.signed.c = ifelse(iyd > 5000, 1, NA), kmcut = ifelse(km_mark_1 <= 80, "start", ifelse(km_mark_1 > 80 & km_mark_1 < 160, "middle", "end")), status = iyd.signed.c ) #, kmc = ifelse(diffkm < 5, 1, ifelse(diffkm > 5 & diffkm < 10, 2, 3)) + kmc
 
 #codes
 #2 = same , 3 = shift , 4 = shift, 5 = shift, 6 = skip
@@ -158,11 +193,7 @@ datasum <- datasum %>% drop_na(iyd.signed.c)
 
 
 
-datasum <- datasum %>% mutate( AID = str_sub(stop.n.c, 0,3), id_yr = str_sub(stop.n.c, 0,8), Year = str_sub(stop.n.c, 5, 8), stop = as.numeric(str_split(stop.n.c, "_", simplify = TRUE)[,3]))
 
-datasum <- datasum %>% left_join(sumall %>% mutate(Year = as.character(Year)) %>% dplyr::select(id_yr, cut), by="id_yr")
-
-datasum$cut <- ifelse(datasum$cut == 1, "early", ifelse(datasum$cut == 2, "middle", "late"))
 
 # datasum <- datasum %>% mutate(status = ifelse(iyd < 10000 & diffkm < 10000, ifelse(iyd < 1000,"use","alt"),"skip"), kmcut = ifelse(km_mark_1 <= 80, "start", ifelse(km_mark_1 > 80 & km_mark_1 < 160, "middle", "end")))
 
@@ -195,26 +226,43 @@ library(dplyr)
 library(Hmisc)
 
 boot <- datasum %>% 
-  dplyr::select(kmcut, cut, status, diffabsDFP) %>% 
-  group_by(kmcut, cut, status) %>% 
-  group_map(~ smean.cl.boot(., conf.int = .95, B = 1000, na.rm = TRUE)) %>%
+  mutate(km_rnd = round(km_mark_1/20,0)*20) %>% 
+  dplyr::select(km_rnd, cut, status, diffabsDFP) %>% 
+  group_by(km_rnd, cut, status) %>% 
+  group_map(~ smean.cl.boot(., conf.int = .95, B = 100, na.rm = TRUE)) %>%
   bind_rows()
 
 dat <- datasum %>% 
-  dplyr::select(kmcut, cut, status, diffabsDFP) %>% 
-  group_by(kmcut, cut, status) %>% summarise(Mean = mean(diffabsDFP))
+  mutate(km_rnd = round(km_mark_1/20,0)*20) %>%
+  dplyr::select(km_rnd, cut, status, diffabsDFP) %>% 
+  group_by(km_rnd, cut, status) %>% summarise(Mean = mean(diffabsDFP))
 
 dat <- dat %>% left_join(boot, by = "Mean")
 
 data_new <- dat                             # Replicate data
 data_new$group <- factor(data_new$cut,     
-                         levels = c("early", "middle", "late")) # Reordering group factor levels
-data_new$x <- factor(data_new$kmcut,     
-                         levels = c("start", "middle", "end")) 
+                         levels = c("early", "mid", "late")) # Reordering group factor levels
+#data_new$x <- factor(data_new$kmcut, levels = c("start", "middle", "end")) 
 
-ggplot(data_new) + geom_pointrange(aes(x = x, y = Mean, ymin = Lower, ymax = Upper, group = factor(status), color = factor(status)), position = position_dodge(width = .5), size = 2.15) + geom_hline(aes(yintercept = 0), linetype = "dashed") + labs(y = "Surfing Improvement From Remembered Site", x = "Section of Corridor", color = "Stop Status") + scale_color_manual(values = c("#3C5488FF","#DC0000FF"), labels = c("Short", "Skipped")) + theme_classic() + facet_wrap(~ group) + theme(axis.title.x = element_text(size = 40,color = "grey18"), axis.title.y = element_text(size = 40,color = "grey18"),axis.text.x = element_text(size = 30,color = "grey18"),axis.text.y = element_text(size = 30,color = "grey18"),legend.text = element_text(size = 30,color = "grey18"), legend.title = element_text(size = 40,color = "grey18"),legend.key.size = unit(2, 'cm'), legend.key.height = unit(1, 'cm'), legend.key.width = unit(2, 'cm'), strip.text = element_text(size = 30,color = "grey18")) + scale_y_continuous(limits = c(-30,30), breaks = seq(-30,30,10))
+ggplot(data_new %>% filter(km_rnd < 240)) + geom_pointrange(aes(x = km_rnd, y = Mean, ymin = Lower, ymax = Upper, group = factor(status), color = factor(status)), position = position_dodge(width = .5), size = 1.75, linewidth = 1.3) + geom_hline(aes(yintercept = 0), linetype = "dashed") + geom_line(aes(x = km_rnd, y = Mean, group = factor(status), color = factor(status)), position = position_dodge(width = .5), size = 2.15) + geom_hline(aes(yintercept = 0), linetype = "dashed") + labs(y = "Surfing Improvement From Remembered Site", x = "Distance from Winter Range (km)", color = "Stop Status") + scale_color_manual(values = c("#3C5488FF"), labels = c("Short")) + theme_classic() + facet_wrap(~ group) + theme(axis.title.x = element_text(size = 48,color = "grey18"), axis.title.y = element_text(size = 48,color = "grey18"),axis.text.x = element_text(size = 40,color = "grey18"),axis.text.y = element_text(size = 40,color = "grey18"),legend.text = element_text(size = 30,color = "grey18"), legend.title = element_text(size = 40,color = "grey18"),legend.key.size = unit(2, 'cm'), legend.key.height = unit(1, 'cm'), legend.position = "none", legend.key.width = unit(2, 'cm'), strip.text = element_text(size = 30,color = "grey18")) + coord_cartesian(ylim = c(-40,40)) + scale_y_continuous(limits = c(-60,60), breaks = seq(-40,40,10)) + scale_x_continuous(limits = c(0,240), breaks = seq(0,240,60))
 
-ggsave(filename = "C:/Users/lwilde2/Documents/PhD_AdaptiveFidelity/Figures/ShortAndSkippedSites_20230513_2.jpg", width = 46, height = 30, units = "cm", dpi = 600)
+ggsave(filename = "C:/Users/lwilde2/Documents/PhD_AdaptiveFidelity/Figures/ShortAndSkippedSites_20230516.jpg", width = 72, height = 42, units = "cm", dpi = 600)
+
+
+
+
+
+
+
+
+datasum %>% mutate(iyd, )
+
+ggplot(datasum) + geom_point(aes(x = km_mark_1, y = diffabsDFP, size = iyd, color = cut)) + geom_smooth(aes(x = km_mark_1, y = diffabsDFP, group = cut, color = cut), method = "loess") + theme_classic()  + theme(axis.title.x = element_text(size = 40,color = "grey18"), axis.title.y = element_text(size = 40,color = "grey18"),axis.text.x = element_text(size = 30,color = "grey18"),axis.text.y = element_text(size = 30,color = "grey18"),legend.text = element_text(size = 30,color = "grey18"), legend.title = element_text(size = 40,color = "grey18"),legend.key.size = unit(2, 'cm'), legend.key.height = unit(1, 'cm'), legend.key.width = unit(2, 'cm'), strip.text = element_text(size = 30,color = "grey18")) + scale_y_continuous(limits = c(-30,30), breaks = seq(-30,30,10)) + geom_hline(aes(yintercept = 0), linetype = "dashed") + labs(y = "Surfing Improvement From Remembered Site", x = "Section of Corridor", color = "Stop Status") + scale_color_manual(values = c("#3C5488FF","#DC0000FF"), labels = c("Short", "Skipped")) + theme_classic() + facet_wrap(~ group) + theme(axis.title.x = element_text(size = 60,color = "grey18"), axis.title.y = element_text(size = 60,color = "grey18"),axis.text.x = element_text(size = 50,color = "grey18"),axis.text.y = element_text(size = 50,color = "grey18"),legend.text = element_text(size = 50,color = "grey18"), legend.title = element_text(size = 40,color = "grey18"),legend.key.size = unit(2, 'cm'), legend.key.height = unit(1, 'cm'), legend.key.width = unit(2, 'cm'), strip.text = element_text(size = 30,color = "grey18")) + scale_y_continuous(limits = c(-30,30), breaks = seq(-30,30,10))
+
+
+
+
+
 
 ggplot(datasum %>% filter(kmcut == "start")) + geom_density_ridges2(aes(x = diffIRGday, y = factor(cut), fill = factor(status), color = factor(status)), quantile_lines = TRUE, quantiles = 2, alpha = .3, scale = 0.9)+ theme_classic() +
   ggplot(datasum %>% filter(kmcut == "middle")) + geom_density_ridges2(aes(x = diffIRGday, y = factor(cut), fill = factor(status), color = factor(status)), quantile_lines = TRUE, quantiles = 2, alpha = .3, scale = 0.9)+ theme_classic() +
